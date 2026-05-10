@@ -1,9 +1,10 @@
 # src/logic/armas.py
 
 class Arma:
-    def __init__(self, nombre, daño):
+    def __init__(self, nombre, daño, clase_permitida=None):
         self.nombre = nombre
         self.daño = daño
+        self.clase_permitida = clase_permitida # "guerrero", "tirador" o None
 
     def calcular_daño(self, fuerza):
         return self.daño + fuerza

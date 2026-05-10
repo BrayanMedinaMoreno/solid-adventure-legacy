@@ -11,7 +11,7 @@ class Personaje:
         self.max_vida = vida
         self.nivel = 1
         self.xp = 0
-        self.xp_necesaria = 100
+        self.xp_necesaria = 250
         
         # Sistema de Dinero
         self.cobre = 0
@@ -22,6 +22,9 @@ class Personaje:
         self.banco_plata = 0
         self.banco_oro = 0
         self.banco_platino = 0  
+        
+        self.armadura = None
+        self.baul = [] # Inventario del banco
 
     def vivo(self):
         return self.vida > 0
@@ -39,8 +42,11 @@ class Personaje:
 
     def atacar(self, oponente, log):
         dmg = self.daño(oponente)
-        oponente.vida -= dmg
-        log.add_message(f"[{self.nombre}] Ataca -> {dmg} DMG")
+        if oponente.recibir_daño(dmg):
+            log.add_message(f"[{self.nombre}] Ataca -> {dmg} DMG")
+        else:
+            log.add_message(f"[{self.nombre}] ¡FALLÓ EL ATAQUE!")
+            
         if not oponente.vivo():
             oponente.morir(log)
 
@@ -54,7 +60,7 @@ class Personaje:
         self.max_vida += 20
         self.vida = self.max_vida
         self.nivel += 1
-        self.xp_necesaria = int(self.xp_necesaria * 1.5)
+        self.xp_necesaria = int(self.xp_necesaria * 2.0)
         if log:
             log.add_message(f"[SISTEMA] ¡NIVEL UP! Lvl {self.nivel}")
 
@@ -97,9 +103,10 @@ class Tirador(Personaje):
 
     def daño(self, oponente):
         ataque_total = self.arma.calcular_daño(self.fuerza)
-        if ataque_total <= oponente.defensa:
+        defensa_oponente = oponente.defensa + (oponente.armadura.defensa if oponente.armadura else 0)
+        if ataque_total <= defensa_oponente:
             return 0
-        return ataque_total - oponente.defensa
+        return ataque_total - defensa_oponente
 
 class Guerrero(Personaje):
     def __init__(self, nombre, fuerza, fe, defensa, vida, espada):
@@ -108,7 +115,8 @@ class Guerrero(Personaje):
 
     def daño(self, oponente):
         ataque_total = self.espada.calcular_daño(self.fuerza)
-        if ataque_total <= oponente.defensa:
+        defensa_oponente = oponente.defensa + (oponente.armadura.defensa if oponente.armadura else 0)
+        if ataque_total <= defensa_oponente:
             return 0
-        return ataque_total - oponente.defensa
+        return ataque_total - defensa_oponente
 

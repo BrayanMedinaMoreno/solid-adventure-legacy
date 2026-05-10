@@ -2,7 +2,7 @@ import pygame
 from settings import *
 from logic.personaje import Guerrero, Tirador
 from logic.armas import Arma
-from items.potion import Pocion
+from items.potion import Pocion, PocionRegreso
 
 class Player(pygame.sprite.Sprite):
     def __init__(self, game, x, y, clase_elegida="guerrero"):
@@ -28,13 +28,18 @@ class Player(pygame.sprite.Sprite):
 
         # Integración con la lógica antigua
         if clase_elegida == "tirador":
-            arma_inicial = Arma("Pistola Básica", 20)
+            arma_inicial = Arma("Pistola Básica", 20, "tirador")
             self.logic = Tirador("Tirador", fuerza=15, fe=0, defensa=4, vida=80, arma=arma_inicial)
         else:
-            arma_inicial = Arma("Espada Corta", 15)
+            arma_inicial = Arma("Espada Corta", 15, "guerrero")
             self.logic = Guerrero("Guerrero", fuerza=12, fe=0, defensa=8, vida=100, espada=arma_inicial)
         
+        self.logic.game = self.game
         self.inventory = [arma_inicial]
+        for _ in range(5):
+            self.inventory.append(Pocion("media"))
+        for _ in range(2):
+            self.inventory.append(PocionRegreso())
 
     def move(self, dx=0, dy=0):
         # Comprobar si el destino es suelo o pared
@@ -55,6 +60,7 @@ class Player(pygame.sprite.Sprite):
                 elif chest:
                     nuevo_item = chest.open()
                     self.inventory.append(nuevo_item)
+                    self.game.spawn_floating_text(f"+{nuevo_item.nombre}", self.rect.centerx, self.rect.top - 20, YELLOW)
                     # Equipar automáticamente si es un arma y es mejor
                     if isinstance(nuevo_item, Arma):
                         # Helper para obtener el arma actual

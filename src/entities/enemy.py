@@ -27,6 +27,7 @@ class Enemy(pygame.sprite.Sprite):
         # Stats del enemigo
         self.vida = 20
         self.max_vida = 20
+        self.armadura = None # Los enemigos no suelen usar armaduras equipables
         self.fuerza = 5
         self.defensa = 2
         self.name = "Goblin"
@@ -34,6 +35,15 @@ class Enemy(pygame.sprite.Sprite):
 
     def vivo(self):
         return self.vida > 0
+
+    def recibir_daño(self, dmg):
+        self.vida -= dmg
+        if self.vida < 0: self.vida = 0
+        return True # El daño fue aplicado
+
+    def act(self):
+        """Método para lógica especial del enemigo en su turno"""
+        pass
 
     def morir(self, log=None):
         self.kill() # Eliminar del grupo de sprites

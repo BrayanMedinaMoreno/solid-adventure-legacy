@@ -2,7 +2,8 @@ import pygame
 import random
 from settings import *
 from logic.armas import Arma
-from items.potion import Pocion
+from logic.armaduras import Armadura
+from items.potion import Pocion, PocionRegreso
 
 class Chest(pygame.sprite.Sprite):
     def __init__(self, game, x, y):
@@ -26,11 +27,27 @@ class Chest(pygame.sprite.Sprite):
     def open(self):
         # Generar aleatoriamente
         if random.random() < 0.4: # 40% de probabilidad de ser poción
-            item = Pocion()
+            tipo_p = random.choices(["pequeña", "media", "grande"], weights=[60, 30, 10])[0]
+            item = Pocion(tipo_p)
         else:
-            nombres = ["Espada Oxidada", "Daga Rápida", "Hacha Pesada", "Pistola Vieja"]
-            daño = random.randint(5, 20)
-            item = Arma(random.choice(nombres), daño)
+            clases = ["guerrero", "tirador"]
+            clase_p = random.choice(clases)
+            nombres = {
+                "guerrero": ["Espada Oxidada", "Daga Rápida", "Hacha Pesada", "Mazo de Guerra"],
+                "tirador": ["Pistola Vieja", "Rifle de Caza", "Ballesta", "Escopeta Recortada"]
+            }
+            nombres_armadura = {
+                "guerrero": ["Armadura de Cuero", "Cota de Malla", "Pechera de Hierro"],
+                "tirador": ["Capa de Viaje", "Túnica Reforzada", "Chaqueta de Piel"]
+            }
+            
+            daño_def = random.randint(5, 20)
+            
+            if random.random() < 0.7: # 70% Arma, 30% Armadura
+                item = Arma(random.choice(nombres[clase_p]), daño_def, clase_p)
+            else:
+                defensa = daño_def // 2 + 2
+                item = Armadura(random.choice(nombres_armadura[clase_p]), defensa, clase_p)
         
         self.game.log.add_message(f"[COFRE] Obtienes {item.nombre}")
         self.kill() # Eliminar cofre del mapa
