@@ -4,7 +4,7 @@ import random
 from settings import *
 from level import Level
 from entities.player import Player
-from entities.enemy_types import Goblin, Orco
+from entities.enemy_types import Goblin, Orco, Slime
 from items.chest import Chest
 from items.potion import Pocion
 from logic.armas import Arma
@@ -71,7 +71,11 @@ class Game:
             for _ in range(4 + self.profundidad * 2):
                 tile = random.choice(self.level.floor_tiles)
                 if tile != (self.player.x, self.player.y):
-                    tipo_enemigo = random.choice([Goblin, Orco])
+                    # Favorecer slimes en niveles bajos (1-3)
+                    if self.profundidad <= 3:
+                        tipo_enemigo = random.choice([Goblin, Slime, Slime, Slime, Orco])
+                    else:
+                        tipo_enemigo = random.choice([Goblin, Orco, Slime])
                     enemy = tipo_enemigo(self, tile[0], tile[1])
                     # Escalar dificultad
                     enemy.max_vida += self.profundidad * 10

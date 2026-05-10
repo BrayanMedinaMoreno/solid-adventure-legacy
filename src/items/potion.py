@@ -1,4 +1,3 @@
-# src/items/potion.py
 
 class Pocion:
     def __init__(self, nombre="Poción de Vida", curacion=30):

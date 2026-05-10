@@ -17,6 +17,12 @@ class Panel:
         start_x = MAP_WIDTH + 20
         y = 20
 
+        # Ubicación (Piso actual)
+        loc_text = "PUEBLO (SEGURO)" if self.game.profundidad == 0 else f"CALABOZO: NIVEL {self.game.profundidad}"
+        loc_color = GREEN if self.game.profundidad == 0 else RED
+        self.draw_text(surface, loc_text, start_x, y, self.title_font, loc_color)
+        y += 40
+
         # Título
         self.draw_text(surface, "PLAYER STATS", start_x, y, self.title_font, CYAN)
         y += 40

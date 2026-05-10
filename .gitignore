@@ -18,3 +18,9 @@ venv.bak/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Guía local
+guia_proyecto.txt
+
+# Carpetas de recursos temporales
+assets/sprites/temp_sprites/

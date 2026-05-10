@@ -1,4 +1,3 @@
-# src/items/chest.py
 import pygame
 import random
 from settings import *
@@ -12,7 +11,7 @@ class Chest(pygame.sprite.Sprite):
         self.game = game
         
         try:
-            self.image = pygame.image.load('../assets/sprites/cofre.png').convert_alpha()
+            self.image = pygame.image.load('assets/sprites/cofre.png').convert_alpha()
             self.image = pygame.transform.scale(self.image, (TILESIZE, TILESIZE))
         except FileNotFoundError:
             self.image = pygame.Surface((TILESIZE, TILESIZE), pygame.SRCALPHA)

@@ -1,4 +1,3 @@
-# src/entities/enemy.py
 import pygame
 from settings import *
 
@@ -10,7 +9,7 @@ class Enemy(pygame.sprite.Sprite):
         
         # Cargar y escalar imagen
         try:
-            self.image = pygame.image.load('../assets/sprites/enemigo_base.png').convert_alpha()
+            self.image = pygame.image.load('assets/sprites/enemigo_base.png').convert_alpha()
             self.image = pygame.transform.scale(self.image, (TILESIZE, TILESIZE))
         except FileNotFoundError:
             # Fallback si no encuentra la imagen (triangulo rojo como en la imagen de referencia)

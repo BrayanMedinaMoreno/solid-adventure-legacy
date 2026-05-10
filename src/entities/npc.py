@@ -1,4 +1,3 @@
-# src/entities/npc.py
 import pygame
 from settings import *
 

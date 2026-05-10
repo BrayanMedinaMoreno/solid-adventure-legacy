@@ -19,6 +19,9 @@ class Personaje:
         self.oro = 0
         self.platino = 0
         self.banco_cobre = 0
+        self.banco_plata = 0
+        self.banco_oro = 0
+        self.banco_platino = 0  
 
     def vivo(self):
         return self.vida > 0

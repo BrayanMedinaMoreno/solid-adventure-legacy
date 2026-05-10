@@ -12,7 +12,7 @@ class Player(pygame.sprite.Sprite):
         
         # Cargar y escalar imagen
         try:
-            self.image = pygame.image.load('../assets/sprites/player.png').convert_alpha()
+            self.image = pygame.image.load('assets/sprites/player.png').convert_alpha()
             self.image = pygame.transform.scale(self.image, (TILESIZE, TILESIZE))
         except FileNotFoundError:
             # Fallback si no encuentra la imagen
