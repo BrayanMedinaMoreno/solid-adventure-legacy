@@ -282,6 +282,12 @@ class Game:
         self.panel.draw(self.screen)
         self.log.draw(self.screen)
 
+        # Overlay oscuro si hay un menú abierto
+        if self.state in ["INVENTORY", "SHOP", "BANK", "SELL", "BANK_STORE", "BANK_RETRIEVE"]:
+            overlay = pygame.Surface((MAP_WIDTH, HEIGHT), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 150))
+            self.screen.blit(overlay, (0, 0))
+
         if self.state == "COMBAT":
             self.draw_combat_menu()
         elif self.state == "INVENTORY":
@@ -298,6 +304,37 @@ class Game:
             self.draw_vault_menu(self.player.logic.baul, "RETIRAR DE BAUL")
 
         pygame.display.flip()
+
+    def draw_description_box(self, text):
+        if not text: return
+        w = 450
+        panel_rect = pygame.Rect(MAP_WIDTH // 2 - w // 2, HEIGHT - 130, w, 110)
+        # Sombra
+        pygame.draw.rect(self.screen, (5, 5, 5), (panel_rect.x + 5, panel_rect.y + 5, panel_rect.width, panel_rect.height))
+        # Fondo con degradado simulado (bordes más claros)
+        pygame.draw.rect(self.screen, (25, 25, 40), panel_rect)
+        pygame.draw.rect(self.screen, (60, 60, 80), panel_rect, 1) # Borde sutil
+        pygame.draw.rect(self.screen, YELLOW, (panel_rect.x, panel_rect.y, panel_rect.width, 4)) # Línea superior decorativa
+        
+        font = pygame.font.SysFont('Consolas', 16)
+        title_font = pygame.font.SysFont('Consolas', 16, bold=True)
+        
+        self.screen.blit(title_font.render("DETALLES DEL OBJETO:", True, YELLOW), (panel_rect.x + 15, panel_rect.y + 12))
+        
+        # Wrap text
+        words = text.split(' ')
+        lines = []
+        current_line = ""
+        for word in words:
+            if font.size(current_line + word)[0] < (w - 30):
+                current_line += word + " "
+            else:
+                lines.append(current_line)
+                current_line = word + " "
+        lines.append(current_line)
+        
+        for i, line in enumerate(lines[:3]):
+            self.screen.blit(font.render(line, True, LIGHT_GREY), (panel_rect.x + 15, panel_rect.y + 40 + i * 20))
 
     def draw_class_selection(self):
         title_font = pygame.font.SysFont('Consolas', 40, bold=True)
@@ -329,9 +366,10 @@ class Game:
 
     def draw_inventory_menu(self):
         inv = self.player.inventory
-        # Ajustamos el tamaño del menú según la cantidad de items (o un mínimo)
-        h = max(200, min(HEIGHT - 100, len(inv) * 30 + 60))
-        menu_rect = pygame.Rect(MAP_WIDTH // 2 - 150, HEIGHT // 2 - h // 2, 300, h)
+        # Ajustamos el tamaño del menú según la cantidad de items + opción Salir
+        w = 450
+        h = max(200, min(HEIGHT - 100, (len(inv) + 1) * 30 + 60))
+        menu_rect = pygame.Rect(MAP_WIDTH // 2 - w // 2, HEIGHT // 2 - h // 2, w, h)
         pygame.draw.rect(self.screen, (20, 20, 30), menu_rect)
         pygame.draw.rect(self.screen, CYAN, menu_rect, 2)
         
@@ -345,8 +383,26 @@ class Game:
             return
             
         for i, item in enumerate(inv):
-            color = CYAN if i == self.menu_index else WHITE
+            # Comprobar si está equipado
+            logic = self.player.logic
+            is_equipped = False
+            if isinstance(item, Arma):
+                arma_actual = logic.arma if hasattr(logic, 'arma') else logic.espada
+                if item == arma_actual: is_equipped = True
+            elif isinstance(item, Armadura):
+                if item == logic.armadura: is_equipped = True
+
+            # Color según estado
+            if i == self.menu_index:
+                color = CYAN
+                if is_equipped: color = (150, 255, 150) # Cian-Verde brillante
+            elif is_equipped:
+                color = GREEN
+            else:
+                color = WHITE
+            
             prefix = "> " if i == self.menu_index else "  "
+            eq_tag = " [E]" if is_equipped else ""
             
             extra = ""
             if isinstance(item, Arma):
@@ -354,20 +410,43 @@ class Game:
             elif hasattr(item, 'porcentaje'):
                 extra = f" ({int(item.porcentaje*100)}%)"
             
-            text_surface = font.render(prefix + item.nombre + extra, True, color)
+            text_surface = font.render(prefix + item.nombre + extra + eq_tag, True, color)
             self.screen.blit(text_surface, (menu_rect.x + 20, menu_rect.y + 50 + i * 30))
+            
+        # Opción Salir
+        exit_idx = len(inv)
+        color = CYAN if exit_idx == self.menu_index else WHITE
+        prefix = "> " if exit_idx == self.menu_index else "  "
+        self.screen.blit(font.render(prefix + "VOLVER / SALIR", True, color), (menu_rect.x + 20, menu_rect.y + 50 + exit_idx * 30))
+        
+        # Mostrar descripción del item seleccionado
+        if self.menu_index < len(inv):
+            item = inv[self.menu_index]
+            self.draw_description_box(getattr(item, 'descripcion', "Sin descripción."))
+        else:
+            self.draw_description_box("Cerrar el inventario y volver al juego.")
 
     def draw_shop_menu(self):
-        menu_rect = pygame.Rect(MAP_WIDTH // 2 - 150, HEIGHT // 2 - 110, 300, 220)
+        w = 450
+        menu_rect = pygame.Rect(MAP_WIDTH // 2 - w // 2, HEIGHT // 2 - 110, w, 220)
         pygame.draw.rect(self.screen, (30, 20, 20), menu_rect)
         pygame.draw.rect(self.screen, YELLOW, menu_rect, 2)
         font = pygame.font.SysFont('Consolas', 18)
         self.screen.blit(font.render("TIENDA DEL MERCADER", True, YELLOW), (menu_rect.x + 20, menu_rect.y + 10))
         options = ["Pocion Media (100 Cobre)", "Arma Aleatoria (500 Cobre)", "Pocion Regreso (10 Cobre)", "Vender Objeto", "Salir"]
+        descriptions = [
+            "Restaura el 50% de tu salud máxima.",
+            "Un arma poderosa acorde a tu nivel actual.",
+            "Te permite volver al pueblo pero pierdes XP.",
+            "Vende tus objetos por la mitad de su valor.",
+            "Cierra la tienda del mercader."
+        ]
         for i, option in enumerate(options):
             color = CYAN if i == self.menu_index else WHITE
             prefix = "> " if i == self.menu_index else "  "
             self.screen.blit(font.render(prefix + option, True, color), (menu_rect.x + 20, menu_rect.y + 40 + i * 32))
+        
+        self.draw_description_box(descriptions[self.menu_index])
 
     def draw_sell_menu(self):
         self.draw_inventory_menu()
@@ -375,21 +454,32 @@ class Game:
         self.screen.blit(title_font.render("VENDER (Enter para 1/2 valor)", True, RED), (MAP_WIDTH // 2 - 130, 60))
 
     def draw_bank_menu(self):
-        menu_rect = pygame.Rect(MAP_WIDTH // 2 - 150, HEIGHT // 2 - 110, 300, 220)
+        w = 450
+        menu_rect = pygame.Rect(MAP_WIDTH // 2 - w // 2, HEIGHT // 2 - 110, w, 220)
         pygame.draw.rect(self.screen, (20, 30, 30), menu_rect)
         pygame.draw.rect(self.screen, LIGHT_GREY, menu_rect, 2)
         font = pygame.font.SysFont('Consolas', 18)
         banco = self.player.logic.banco_cobre
         self.screen.blit(font.render(f"BANCO (Ahorros: {banco} Cob)", True, CYAN), (menu_rect.x + 20, menu_rect.y + 10))
         options = ["Depositar todo", "Retirar todo", "Guardar Objeto", "Retirar Objeto", "Salir"]
+        descriptions = [
+            "Guarda todo tu dinero actual en la caja fuerte.",
+            "Retira todos tus ahorros del banco.",
+            "Abre el baúl para guardar objetos de tu inventario.",
+            "Abre el baúl para recuperar objetos guardados.",
+            "Cierra el menú del banco."
+        ]
         for i, option in enumerate(options):
             color = CYAN if i == self.menu_index else WHITE
             prefix = "> " if i == self.menu_index else "  "
             self.screen.blit(font.render(prefix + option, True, color), (menu_rect.x + 20, menu_rect.y + 50 + i * 32))
+            
+        self.draw_description_box(descriptions[self.menu_index])
 
     def draw_vault_menu(self, items, title):
-        h = max(200, min(HEIGHT - 100, len(items) * 30 + 60))
-        menu_rect = pygame.Rect(MAP_WIDTH // 2 - 150, HEIGHT // 2 - h // 2, 300, h)
+        w = 450
+        h = max(200, min(HEIGHT - 100, (len(items) + 1) * 30 + 60))
+        menu_rect = pygame.Rect(MAP_WIDTH // 2 - w // 2, HEIGHT // 2 - h // 2, w, h)
         pygame.draw.rect(self.screen, (10, 10, 20), menu_rect)
         pygame.draw.rect(self.screen, CYAN, menu_rect, 2)
         font = pygame.font.SysFont('Consolas', 18)
@@ -398,6 +488,18 @@ class Game:
             color = CYAN if i == self.menu_index else WHITE
             prefix = "> " if i == self.menu_index else "  "
             self.screen.blit(font.render(prefix + item.nombre, True, color), (menu_rect.x + 20, menu_rect.y + 40 + i * 30))
+            
+        # Opción Salir
+        exit_idx = len(items)
+        color = CYAN if exit_idx == self.menu_index else WHITE
+        prefix = "> " if exit_idx == self.menu_index else "  "
+        self.screen.blit(font.render(prefix + "VOLVER / SALIR", True, color), (menu_rect.x + 20, menu_rect.y + 40 + exit_idx * 30))
+        
+        if self.menu_index < len(items):
+            item = items[self.menu_index]
+            self.draw_description_box(getattr(item, 'descripcion', "Sin descripción."))
+        else:
+            self.draw_description_box("Volver al menú principal del banco.")
 
     def events(self):
         # Manejo de eventos
@@ -444,21 +546,22 @@ class Game:
                     if event.key == pygame.K_UP or event.key == pygame.K_w:
                         self.menu_index = max(0, self.menu_index - 1)
                     if event.key == pygame.K_DOWN or event.key == pygame.K_s:
-                        if len(inv) > 0:
-                            self.menu_index = min(len(inv) - 1, self.menu_index + 1)
+                        self.menu_index = min(len(inv), self.menu_index + 1)
                     if event.key == pygame.K_ESCAPE or event.key == pygame.K_i:
                         # Cerrar inventario
                         self.state = "COMBAT" if self.current_enemy else "PLAYING"
                     if event.key == pygame.K_RETURN:
-                        if len(inv) > 0:
+                        if self.menu_index < len(inv):
                             item = inv[self.menu_index]
                             self.use_item(item)
+                        else:
+                            self.state = "COMBAT" if self.current_enemy else "PLAYING"
 
                 elif self.state == "SHOP":
                     if event.key == pygame.K_UP or event.key == pygame.K_w:
                         self.menu_index = max(0, self.menu_index - 1)
                     if event.key == pygame.K_DOWN or event.key == pygame.K_s:
-                        self.menu_index = min(3, self.menu_index + 1)
+                        self.menu_index = min(4, self.menu_index + 1)
                     if event.key == pygame.K_RETURN:
                         if self.menu_index == 0:
                             if self.player.logic.gastar_monedas(100):
@@ -497,13 +600,12 @@ class Game:
                     if event.key == pygame.K_UP or event.key == pygame.K_w:
                         self.menu_index = max(0, self.menu_index - 1)
                     if event.key == pygame.K_DOWN or event.key == pygame.K_s:
-                        if len(inv) > 0:
-                            self.menu_index = min(len(inv) - 1, self.menu_index + 1)
+                        self.menu_index = min(len(inv), self.menu_index + 1)
                     if event.key == pygame.K_ESCAPE:
                         self.state = "SHOP"
                         self.menu_index = 0
                     if event.key == pygame.K_RETURN:
-                        if len(inv) > 0:
+                        if self.menu_index < len(inv):
                             item = inv.pop(self.menu_index)
                             # Precio de venta: 1/2 del precio de compra aprox
                             valor = 50 # Base
@@ -513,6 +615,9 @@ class Game:
                             self.player.logic.añadir_monedas(valor)
                             self.log.add_message(f"[MERCADER] Te doy {valor} Cob por {item.nombre}.")
                             self.menu_index = max(0, self.menu_index - 1)
+                        else:
+                            self.state = "SHOP"
+                            self.menu_index = 3
                 
                 elif self.state == "BANK":
                     if event.key == pygame.K_UP or event.key == pygame.K_w:
@@ -546,34 +651,38 @@ class Game:
                     if event.key == pygame.K_UP or event.key == pygame.K_w:
                         self.menu_index = max(0, self.menu_index - 1)
                     if event.key == pygame.K_DOWN or event.key == pygame.K_s:
-                        if len(inv) > 0:
-                            self.menu_index = min(len(inv) - 1, self.menu_index + 1)
+                        self.menu_index = min(len(inv), self.menu_index + 1)
                     if event.key == pygame.K_ESCAPE:
                         self.state = "BANK"
                         self.menu_index = 2
                     if event.key == pygame.K_RETURN:
-                        if len(inv) > 0:
+                        if self.menu_index < len(inv):
                             item = inv.pop(self.menu_index)
                             self.player.logic.baul.append(item)
                             self.log.add_message(f"[BANQUERO] {item.nombre} guardado.")
                             self.menu_index = max(0, self.menu_index - 1)
+                        else:
+                            self.state = "BANK"
+                            self.menu_index = 2
 
                 elif self.state == "BANK_RETRIEVE":
                     baul = self.player.logic.baul
                     if event.key == pygame.K_UP or event.key == pygame.K_w:
                         self.menu_index = max(0, self.menu_index - 1)
                     if event.key == pygame.K_DOWN or event.key == pygame.K_s:
-                        if len(baul) > 0:
-                            self.menu_index = min(len(baul) - 1, self.menu_index + 1)
+                        self.menu_index = min(len(baul), self.menu_index + 1)
                     if event.key == pygame.K_ESCAPE:
                         self.state = "BANK"
                         self.menu_index = 3
                     if event.key == pygame.K_RETURN:
-                        if len(baul) > 0:
+                        if self.menu_index < len(baul):
                             item = baul.pop(self.menu_index)
                             self.player.inventory.append(item)
                             self.log.add_message(f"[BANQUERO] {item.nombre} retirado.")
                             self.menu_index = max(0, self.menu_index - 1)
+                        else:
+                            self.state = "BANK"
+                            self.menu_index = 3
 
 if __name__ == "__main__":
     g = Game()

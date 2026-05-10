@@ -2,14 +2,17 @@ class Pocion:
     def __init__(self, tipo="media"):
         self.tipo = tipo # "pequeña", "media", "grande"
         if tipo == "pequeña":
-            self.nombre = "Pocion Pequeña (20%)"
+            self.nombre = "Pocion Pequeña"
             self.porcentaje = 0.20
+            self.descripcion = "Recupera el 20% de tu salud máxima."
         elif tipo == "grande":
-            self.nombre = "Pocion Grande (100%)"
+            self.nombre = "Pocion Grande"
             self.porcentaje = 1.0
+            self.descripcion = "Recupera TODA tu salud máxima."
         else:
-            self.nombre = "Pocion Media (50%)"
+            self.nombre = "Pocion Media"
             self.porcentaje = 0.50
+            self.descripcion = "Recupera el 50% de tu salud máxima."
 
     def usar(self, personaje, log):
         curacion = int(personaje.max_vida * self.porcentaje)
@@ -19,6 +22,7 @@ class Pocion:
 class PocionRegreso:
     def __init__(self):
         self.nombre = "Pocion de Regreso"
+        self.descripcion = "Te teletransporta al pueblo. Pierdes 10% XP."
 
     def usar(self, personaje, log):
         # Penalidad del 10% de la XP actual

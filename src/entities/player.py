@@ -61,16 +61,6 @@ class Player(pygame.sprite.Sprite):
                     nuevo_item = chest.open()
                     self.inventory.append(nuevo_item)
                     self.game.spawn_floating_text(f"+{nuevo_item.nombre}", self.rect.centerx, self.rect.top - 20, YELLOW)
-                    # Equipar automáticamente si es un arma y es mejor
-                    if isinstance(nuevo_item, Arma):
-                        # Helper para obtener el arma actual
-                        arma_actual = self.logic.arma if hasattr(self.logic, 'arma') else self.logic.espada
-                        if nuevo_item.daño > arma_actual.daño:
-                            if hasattr(self.logic, 'arma'):
-                                self.logic.arma = nuevo_item
-                            else:
-                                self.logic.espada = nuevo_item
-                            self.game.log.add_message(f"Has equipado: {nuevo_item.nombre}")
                 else:
                     self.x = dest_x
                     self.y = dest_y
