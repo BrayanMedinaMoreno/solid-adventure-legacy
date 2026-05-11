@@ -32,18 +32,29 @@ class Enemy(pygame.sprite.Sprite):
         self.defensa = 2
         self.name = "Goblin"
         self.xp_recompensa = 10
+        self.titulo = None
 
     def vivo(self):
         return self.vida > 0
 
-    def recibir_daño(self, dmg):
+    def recibir_daño(self, dmg, tipo="fisico"):
+        if self.titulo:
+            from logic.titulos_enemigos import TITULOS_ENEMIGOS
+            titulo_data = TITULOS_ENEMIGOS.get(self.titulo)
+            if titulo_data and "on_recibir_daño" in titulo_data:
+                return titulo_data["on_recibir_daño"](self, dmg, tipo=tipo)
+        
         self.vida -= dmg
         if self.vida < 0: self.vida = 0
         return True # El daño fue aplicado
 
     def act(self):
         """Método para lógica especial del enemigo en su turno"""
-        pass
+        if self.titulo:
+            from logic.titulos_enemigos import TITULOS_ENEMIGOS
+            titulo_data = TITULOS_ENEMIGOS.get(self.titulo)
+            if titulo_data and "on_turno" in titulo_data:
+                titulo_data["on_turno"](self)
 
     def morir(self, log=None):
         self.kill() # Eliminar del grupo de sprites

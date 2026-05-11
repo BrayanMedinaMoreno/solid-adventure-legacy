@@ -1,0 +1,44 @@
+{
+    "max_profundidad": 1,
+    "player_logic": {
+        "nombre": "Guerrero",
+        "fuerza": 12,
+        "fe": 0,
+        "defensa": 8,
+        "vida": 100,
+        "max_vida": 100,
+        "nivel": 1,
+        "xp": 0,
+        "xp_necesaria": 250,
+        "cobre": 0,
+        "plata": 0,
+        "oro": 0,
+        "platino": 0,
+        "banco_cobre": 0,
+        "armadura": null,
+        "baul": [],
+        "clase": "guerrero",
+        "espada": {
+            "nombre": "Espada Corta",
+            "da\u00f1o": 15,
+            "clase_permitida": "guerrero"
+        }
+    },
+    "inventory": [
+        {
+            "nombre": "Espada Corta",
+            "da\u00f1o": 15,
+            "clase_permitida": "guerrero",
+            "type": "Arma"
+        },
+        {
+            "type": "Pocion",
+            "tipo": "media",
+            "cantidad": 5
+        },
+        {
+            "type": "PocionRegreso",
+            "cantidad": 2
+        }
+    ]
+}

@@ -1,11 +1,11 @@
 import pygame
 from settings import *
-from logic.personaje import Guerrero, Tirador
+from logic.personaje import Personaje
 from logic.armas import Arma
 from items.potion import Pocion, PocionRegreso
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self, game, x, y, clase_elegida="guerrero"):
+    def __init__(self, game, x, y, clase_elegida="guerrero", logic=None, inventory=None, nombre=None):
         self.groups = game.all_sprites
         pygame.sprite.Sprite.__init__(self, self.groups)
         self.game = game
@@ -26,20 +26,31 @@ class Player(pygame.sprite.Sprite):
         self.rect.x = x * TILESIZE
         self.rect.y = y * TILESIZE
 
-        # Integración con la lógica antigua
-        if clase_elegida == "tirador":
-            arma_inicial = Arma("Pistola Básica", 20, "tirador")
-            self.logic = Tirador("Tirador", fuerza=15, fe=0, defensa=4, vida=80, arma=arma_inicial)
+        # Integración con la lógica
+        if logic:
+            self.logic = logic
+            self.logic.game = self.game
+            self.inventory = inventory if inventory is not None else []
         else:
-            arma_inicial = Arma("Espada Corta", 15, "guerrero")
-            self.logic = Guerrero("Guerrero", fuerza=12, fe=0, defensa=8, vida=100, espada=arma_inicial)
-        
-        self.logic.game = self.game
-        self.inventory = [arma_inicial]
-        for _ in range(5):
-            self.inventory.append(Pocion("media"))
-        for _ in range(2):
-            self.inventory.append(PocionRegreso())
+            if not nombre:
+                nombre = "Aventurero"
+
+            # Stats de "Hoja en Blanco" (Equilibrado)
+            self.logic = Personaje(nombre, fuerza=12, fe=0, defensa=6, vida=100)
+            self.logic.game = self.game
+            self.inventory = []
+            
+            # Equipo Inicial: El mundo te da las herramientas básicas para forjar tu camino
+            espada_madera = Arma("Espada de Madera", 8, "fisico")
+            honda_basica = Arma("Honda Vieja", 6, "distancia")
+            
+            self.logic.arma = espada_madera
+            self.add_to_inventory(espada_madera)
+            self.add_to_inventory(honda_basica)
+            
+            for _ in range(3):
+                self.add_to_inventory(Pocion("media"))
+            self.add_to_inventory(PocionRegreso())
 
     def move(self, dx=0, dy=0):
         # Comprobar si el destino es suelo o pared
@@ -59,22 +70,56 @@ class Player(pygame.sprite.Sprite):
                     npc.interact()
                 elif chest:
                     nuevo_item = chest.open()
-                    self.inventory.append(nuevo_item)
+                    self.add_to_inventory(nuevo_item)
                     self.game.spawn_floating_text(f"+{nuevo_item.nombre}", self.rect.centerx, self.rect.top - 20, YELLOW)
                 else:
                     self.x = dest_x
                     self.y = dest_y
                     self.rect.x = self.x * TILESIZE
                     self.rect.y = self.y * TILESIZE
+                    
+                    # Comprobar si hay una trampa en la nueva posición
+                    trap = self.game.get_trap_at(self.x, self.y)
+                    if trap:
+                        trap.trigger()
 
                     # Comprobar escaleras
                     if self.game.level.stairs_down and (self.x, self.y) == self.game.level.stairs_down:
-                        self.game.went_down = True
-                        self.game.profundidad += 1
-                        self.game.log.add_message(f"[SISTEMA] Bajas al Nivel {self.game.profundidad}")
-                        self.game.load_level()
+                        if self.game.profundidad == 0:
+                            if self.game.max_profundidad > 1:
+                                self.game.state = "LEVEL_SELECTION"
+                                self.game.menu_index = 0
+                            else:
+                                self.game.went_down = True
+                                self.game.profundidad = 1
+                                self.game.log.add_message(f"[SISTEMA] Bajas al Nivel 1")
+                                self.game.load_level()
+                        elif len(self.game.enemies) > 0:
+                            self.game.log.add_message("[SISTEMA] ¡Derrota a todos los enemigos para bajar!")
+                        else:
+                            self.game.went_down = True
+                            self.game.profundidad += 1
+                            self.game.max_profundidad = max(self.game.max_profundidad, self.game.profundidad)
+                            self.game.log.add_message(f"[SISTEMA] Bajas al Nivel {self.game.profundidad}")
+                            self.game.load_level()
                     elif self.game.level.stairs_up and (self.x, self.y) == self.game.level.stairs_up:
                         self.game.went_down = False
                         self.game.profundidad -= 1
                         self.game.log.add_message("[SISTEMA] Subes por las escaleras.")
                         self.game.load_level()
+
+    def add_to_inventory(self, item):
+        # Solo apilar Pociones y Pociones de Regreso
+        if isinstance(item, (Pocion, PocionRegreso)):
+            for inv_item in self.inventory:
+                if type(inv_item) == type(item):
+                    if isinstance(item, Pocion):
+                        if inv_item.tipo == item.tipo:
+                            inv_item.cantidad += 1
+                            return
+                    else: # PocionRegreso
+                        inv_item.cantidad += 1
+                        return
+        
+        # Si no es apilable o no se encontró en el inventario
+        self.inventory.append(item)

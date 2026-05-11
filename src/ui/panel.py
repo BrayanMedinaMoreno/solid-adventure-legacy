@@ -45,6 +45,8 @@ class Panel:
         # Sección Jugador
         logic = player.logic
         self.draw_text(surface, f"NIVEL {logic.nivel}", start_x, y, self.title_font, YELLOW)
+        y += 25
+        self.draw_text(surface, logic.titulo_actual, start_x, y, self.font, CYAN)
         y += 35
         
         # Barra de HP
@@ -108,7 +110,10 @@ class Panel:
             y += 15
             enemy = self.game.current_enemy
             self.draw_text(surface, enemy.name.upper(), start_x, y, self.title_font, RED)
-            y += 40
+            y += 25
+            if enemy.titulo:
+                self.draw_text(surface, f"[{enemy.titulo}]", start_x, y, self.font, CYAN)
+            y += 15
             self.draw_bar(surface, start_x, y, UI_WIDTH - 50, 12, enemy.vida, enemy.max_vida, RED, "ENEMIGO")
             y += 25
             self.draw_text(surface, f" ATK: {enemy.fuerza}  DEF: {enemy.defensa}", start_x, y, self.font, (255, 100, 100))

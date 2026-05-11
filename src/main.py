@@ -1,6 +1,10 @@
+from logic.personaje import Personaje, TITULOS_DATA
 import pygame
 import sys
+import os
 import random
+import time
+random.seed(time.time())
 from settings import *
 from level import Level
 from entities.player import Player
@@ -9,11 +13,12 @@ from items.chest import Chest
 from items.potion import Pocion, PocionRegreso
 from logic.armas import Arma
 from logic.armaduras import Armadura
-from logic.personaje import Guerrero, Tirador
 from entities.npc import Mercader, Banquero
+from entities.trap import Trap
 from ui.panel import Panel
 from ui.log import Log
 from ui.floating_text import FloatingText
+from logic.save_manager import SaveManager
 
 class Game:
     def __init__(self):
@@ -25,12 +30,15 @@ class Game:
         self.clock = pygame.time.Clock()
         self.running = True
         self.floating_texts = pygame.sprite.Group()
+        self.max_profundidad = 1
+        self.combat_intro_timer = 0
 
     def new(self):
-        self.state = "CLASS_SELECTION"
+        self.state = "TITLE_SCREEN"
+        self.menu_index = 0
         self.clase_seleccionada = 0
 
-    def start_game(self, clase_elegida):
+    def start_game(self, clase_elegida, nombre=None):
         self.clase_elegida = clase_elegida
         self.profundidad = 0 # Empezamos en el Pueblo
         self.went_down = True
@@ -38,16 +46,57 @@ class Game:
         self.panel = Panel(self)
         self.log = Log()
         self.player = None
-        self.log.add_message(f"Entras al mundo como {clase_elegida.capitalize()}!")
+        self.log.add_message(f"¡Bienvenido al mundo, {nombre}!")
+        self.character_name = nombre
         
+        self.load_level()
+
+    def start_saved_game(self, save_data):
+        self.max_profundidad = save_data["max_profundidad"]
+        self.profundidad = 0 # Siempre empezamos en el pueblo al cargar
+        self.went_down = True
+        
+        self.panel = Panel(self)
+        self.log = Log()
+        
+        # Reconstruir lógica del jugador
+        p_data = save_data["player_logic"]
+        
+        logic = Personaje(p_data["nombre"], 0, 0, 0, 0)
+        logic.load_base_stats(p_data)
+            
+        logic.load_base_stats(p_data)
+        
+        # Reconstruir baúl
+        logic.baul = []
+        for item_data in p_data["baul"]:
+            item = SaveManager.reconstruct_item(item_data)
+            if item: logic.baul.append(item)
+            
+        # Reconstruir inventario
+        inventory = []
+        for item_data in save_data["inventory"]:
+            item = SaveManager.reconstruct_item(item_data)
+            if item: inventory.append(item)
+            
+        # Crear jugador con lógica cargada
+        self.player = None # Forzar creación en load_level
+        self.loaded_logic = logic
+        self.loaded_inventory = inventory
+        self.character_name = p_data["nombre"]
+        self.clase_elegida = "aventurero" # Valor por defecto legacy
+        
+        self.log.add_message(f"¡Bienvenido de vuelta, {self.character_name}!")
         self.load_level()
 
     def load_level(self):
         self.level = Level(self.profundidad)
+        # Trackear piso máximo
         self.all_sprites = pygame.sprite.Group()
         self.enemies = pygame.sprite.Group()
         self.chests = pygame.sprite.Group()
         self.npcs = pygame.sprite.Group()
+        self.traps = pygame.sprite.Group()
         self.floating_texts = pygame.sprite.Group()
         
         self.state = "PLAYING"
@@ -58,7 +107,12 @@ class Game:
         if not self.player:
             # Crear nuevo jugador
             start_x, start_y = self.level.width_tiles // 2, self.level.height_tiles // 2
-            self.player = Player(self, start_x, start_y, self.clase_elegida)
+            if hasattr(self, 'loaded_logic'):
+                self.player = Player(self, start_x, start_y, self.clase_elegida, self.loaded_logic, self.loaded_inventory)
+                del self.loaded_logic
+                del self.loaded_inventory
+            else:
+                self.player = Player(self, start_x, start_y, self.clase_elegida, nombre=self.character_name)
         else:
             # Mover jugador existente
             if self.went_down:
@@ -70,41 +124,65 @@ class Game:
             self.player.rect.x = start_x * TILESIZE
             self.player.rect.y = start_y * TILESIZE
             self.all_sprites.add(self.player)
+
+        # Trackear piso máximo
+        if self.profundidad > self.player.logic.acciones.get("piso_maximo", 0):
+            self.player.logic.acciones["piso_maximo"] = self.profundidad
+            self.player.logic.verificar_titulos(self.log)
+        
+        # Ocupar baldosas críticas
+        occupied_tiles = set()
+        occupied_tiles.add((self.player.x, self.player.y))
+        if self.level.stairs_up: occupied_tiles.add(self.level.stairs_up)
+        if self.level.stairs_down: occupied_tiles.add(self.level.stairs_down)
         
         if self.profundidad > 0:
             # Spawnear enemigos en calabozo
-            # Spawnear enemigos o JEFE
+            num_enemies = 4 + self.profundidad * 2
             if self.profundidad % 5 == 0:
-                # Spawnear UN solo jefe en una posición aleatoria
-                tile = random.choice(self.level.floor_tiles)
-                while tile == (self.player.x, self.player.y):
-                    tile = random.choice(self.level.floor_tiles)
-                enemy = SlimeBoss(self, tile[0], tile[1])
-                # El jefe no escala tanto por nivel ya que tiene sus propios stats altos
-                enemy.max_vida += self.profundidad * 10
-                enemy.vida = enemy.max_vida
+                # Jefe
+                available_tiles = [t for t in self.level.floor_tiles if t not in occupied_tiles]
+                if available_tiles:
+                    tile = random.choice(available_tiles)
+                    enemy = SlimeBoss(self, tile[0], tile[1])
+                    enemy.max_vida += self.profundidad * 10
+                    enemy.vida = enemy.max_vida
+                    occupied_tiles.add(tile)
             else:
-                for _ in range(4 + self.profundidad * 2):
-                    tile = random.choice(self.level.floor_tiles)
-                    if tile != (self.player.x, self.player.y):
-                        # Favorecer slimes en niveles bajos (1-3)
-                        if self.profundidad <= 3:
-                            tipo_enemigo = random.choice([Goblin, Slime, Slime, Slime])
-                        else:
-                            tipo_enemigo = random.choice([Goblin, Orco, Slime])
-                        enemy = tipo_enemigo(self, tile[0], tile[1])
-                        # Escalar dificultad
-                        enemy.max_vida += self.profundidad * 20
-                        enemy.vida = enemy.max_vida
-                        enemy.fuerza += self.profundidad * 5
-                        enemy.defensa += self.profundidad * 2
-                        enemy.xp_recompensa += self.profundidad * 15
+                for _ in range(num_enemies):
+                    available_tiles = [t for t in self.level.floor_tiles if t not in occupied_tiles]
+                    if not available_tiles: break
+                    tile = random.choice(available_tiles)
+                    
+                    if self.profundidad <= 3:
+                        tipo_enemigo = random.choice([Goblin, Slime, Slime, Slime])
+                    else:
+                        tipo_enemigo = random.choice([Goblin, Orco, Slime])
+                    
+                    enemy = tipo_enemigo(self, tile[0], tile[1])
+                    enemy.max_vida += self.profundidad * 20
+                    enemy.vida = enemy.max_vida
+                    enemy.fuerza += self.profundidad * 5
+                    enemy.defensa += self.profundidad * 2
+                    enemy.xp_recompensa += self.profundidad * 15
+                    occupied_tiles.add(tile)
                 
             # Spawnear cofres
             for _ in range(3):
-                tile = random.choice(self.level.floor_tiles)
-                if tile != (self.player.x, self.player.y):
-                    Chest(self, tile[0], tile[1])
+                available_tiles = [t for t in self.level.floor_tiles if t not in occupied_tiles]
+                if not available_tiles: break
+                tile = random.choice(available_tiles)
+                Chest(self, tile[0], tile[1])
+                occupied_tiles.add(tile)
+            
+            # Spawnear Trampas (Máximo 3)
+            num_traps = random.randint(1, 3)
+            for _ in range(num_traps):
+                available_tiles = [t for t in self.level.floor_tiles if t not in occupied_tiles]
+                if not available_tiles: break
+                tile = random.choice(available_tiles)
+                Trap(self, tile[0], tile[1])
+                occupied_tiles.add(tile)
         else:
             self.log.add_message("[PUEBLO] Estás a salvo aquí.")
             Mercader(self, self.level.width_tiles // 2 - 2, self.level.height_tiles // 2)
@@ -128,43 +206,83 @@ class Game:
                 return npc
         return None
 
+    def get_trap_at(self, x, y):
+        for trap in self.traps:
+            if trap.x == x and trap.y == y:
+                return trap
+        return None
+
     def start_combat(self, enemy):
         self.state = "COMBAT"
         self.current_enemy = enemy
         self.menu_index = 0
+        self.combat_intro_timer = 0.8 # Segundos de alerta
+        self.player.logic.aliento_usado_combate = False
+        self.player.logic.min_porcentaje_vida_combate = (self.player.logic.vida / self.player.logic.max_vida) * 100
         self.log.add_message(f"--- COMBATE: {enemy.name.upper()} ---")
 
     def resolve_combat_action(self):
-        if self.menu_index == 0: # Atacar
-            dmg = self.player.logic.daño(self.current_enemy)
-            self.player.logic.atacar(self.current_enemy, self.log)
-            self.spawn_floating_text(f"-{dmg}", self.current_enemy.rect.centerx, self.current_enemy.rect.top, WHITE)
-            
-            if self.current_enemy.vida <= 0:
-                self.log.add_message(f"[SISTEMA] {self.current_enemy.name} muere.")
-                self.player.logic.ganar_xp(self.current_enemy.xp_recompensa, self.log)
-                self.spawn_floating_text(f"+{self.current_enemy.xp_recompensa} XP", self.player.rect.centerx, self.player.rect.top, YELLOW)
-                
-                monedas = random.randint(self.current_enemy.xp_recompensa // 2, self.current_enemy.xp_recompensa)
-                monedas = int(monedas * (1 + (self.profundidad * 0.5)))
-                self.player.logic.añadir_monedas(monedas)
-                self.log.add_message(f"[LOOT] +{monedas} Cobre")
-                self.spawn_floating_text(f"+{monedas} Cob", self.player.rect.centerx, self.player.rect.centery, (205, 127, 50))
-                
+        # Al iniciar la resolución de la acción, el jugador recupera por su turno
+        self.player.logic.ejecutar_regen_turno(self.log)
+        
+        options = self.get_combat_options()
+        action = options[self.menu_index]
+        
+        should_end_turn = False
+        
+        if action == "Ataque Básico":
+            self.player.logic.atacar(self.current_enemy, self.log, tipo_forzado="fisico")
+            should_end_turn = True
+        elif action == "Golpe Habilidad":
+            self.player.logic.atacar(self.current_enemy, self.log, tipo_forzado="habilidad")
+            should_end_turn = True
+        elif action == "Ataque Distancia":
+            self.player.logic.atacar(self.current_enemy, self.log, tipo_forzado="distancia")
+            should_end_turn = True
+        elif action == "Huir":
+            # Aumentar probabilidad a 70% para mejor fluidez
+            if random.random() < 0.7:
+                self.log.add_message("[SISTEMA] ¡Has escapado del combate!")
+                self.spawn_floating_text("¡ESCAPASTE!", self.player.rect.centerx, self.player.rect.top - 20, GREEN)
                 self.state = "PLAYING"
                 self.current_enemy = None
+                self.menu_index = 0 # Resetear para el próximo encuentro
                 return
-        elif self.menu_index == 1: # Usar Objeto
+            else:
+                self.log.add_message("[SISTEMA] ¡No pudiste escapar!")
+                self.spawn_floating_text("¡FALLASTE!", self.player.rect.centerx, self.player.rect.top - 20, RED)
+                should_end_turn = True
+        elif action == "Inventario":
             self.state = "INVENTORY"
             self.menu_index = 0
             return
-        elif self.menu_index == 2: # Huir
-            self.log.add_message("[TÚ] Huyes del combate.")
+        if self.current_enemy and self.current_enemy.vida <= 0:
+            self.log.add_message(f"[SISTEMA] {self.current_enemy.name} muere.")
+            self.player.logic.ganar_xp(self.current_enemy.xp_recompensa, self.log)
+            self.spawn_floating_text(f"+{self.current_enemy.xp_recompensa} XP", self.player.rect.centerx, self.player.rect.top, YELLOW)
+            
+            # Registrar combate sobrevivido en riesgo
+            min_hp = self.player.logic.min_porcentaje_vida_combate
+            if min_hp < 25: self.player.logic.acciones["combates_bajo_25hp"] += 1
+            if min_hp < 20: self.player.logic.acciones["combates_bajo_20hp"] += 1
+            if min_hp < 15: self.player.logic.acciones["combates_bajo_15hp"] += 1
+            self.player.logic.verificar_titulos(self.log)
+            
+            monedas = int(random.randint(self.current_enemy.xp_recompensa // 2, self.current_enemy.xp_recompensa) * (1 + (self.profundidad * 0.5)))
+            self.player.logic.añadir_monedas(monedas)
+            self.log.add_message(f"[LOOT] +{monedas} Cobre")
+            self.spawn_floating_text(f"+{monedas} Cob", self.player.rect.centerx, self.player.rect.centery, (205, 127, 50))
+            
             self.state = "PLAYING"
+            self.current_enemy.kill()
             self.current_enemy = None
-            return
-
-        self.resolve_enemy_turn()
+            
+            # Comprobar si el nivel está despejado
+            if len(self.enemies) == 0:
+                self.log.add_message("[SISTEMA] ¡ZONA DESPEJADA! Las escaleras están abiertas.")
+                self.spawn_floating_text("¡ZONA DESPEJADA!", self.player.rect.centerx, self.player.rect.top - 40, GREEN)
+        elif should_end_turn and self.current_enemy:
+            self.resolve_enemy_turn()
 
     def resolve_enemy_turn(self):
         if not self.current_enemy or self.current_enemy.vida <= 0: return
@@ -172,27 +290,51 @@ class Game:
         # Lógica especial del enemigo (ej: curación del boss)
         self.current_enemy.act()
         
+        # Determinar tipo de daño del enemigo
+        damage_type = "fisico"
+        enemy_name = self.current_enemy.__class__.__name__
+        
+        chance = random.random()
+        if enemy_name == "Goblin" and chance < 0.25:
+            damage_type = "distancia"
+            self.log.add_message("[GOBIN] ¡Lanza una flecha!")
+        elif enemy_name == "Orco" and chance < 0.15:
+            damage_type = "habilidad"
+            self.log.add_message("[ORCO] ¡Golpe de habilidad pesado!")
+        elif enemy_name == "SlimeBoss" and chance < 0.20:
+            damage_type = "magico"
+            self.log.add_message("[REY SLIME] ¡Explosión mágica viscosa!")
+        
         enemy_dmg = max(1, self.current_enemy.fuerza - self.player.logic.defensa)
-        self.player.logic.vida -= enemy_dmg
-        self.log.add_message(f"[{self.current_enemy.name.upper()}] Ataca -> {enemy_dmg} DMG")
-        self.spawn_floating_text(f"-{enemy_dmg}", self.player.rect.centerx, self.player.rect.top, RED)
+        if self.player.logic.recibir_daño(enemy_dmg, tipo=damage_type, log=self.log):
+            self.spawn_floating_text(f"-{enemy_dmg}", self.player.rect.centerx, self.player.rect.top, RED)
+        
         if self.player.logic.vida <= 0:
             self.log.add_message("[SISTEMA] HAS MUERTO.")
             
-            # Penalidad
+            # Penalidad: Pierde todo el dinero
             self.player.logic.cobre = 0
             self.player.logic.plata = 0
             self.player.logic.oro = 0
             self.player.logic.platino = 0
             
-            clase_jugador = "tirador" if isinstance(self.player.logic, Tirador) else "guerrero"
-            arma_basica = Arma("Palo Roto", 5, clase_jugador)
-            self.player.inventory = [arma_basica]
-            if hasattr(self.player.logic, 'arma'):
-                self.player.logic.arma = arma_basica
-            else:
-                self.player.logic.espada = arma_basica
+            # Penalidad de XP: 20% (sin bajar de nivel, ya que la lógica de nivel no resta)
+            xp_perdida = int(self.player.logic.xp * 0.20)
+            self.player.logic.xp -= xp_perdida
+            
+            # Filtrar inventario: Solo se conserva la Pocion de Regreso
+            # Importamos PocionRegreso localmente para evitar problemas de circularidad si los hay
+            from items.potion import PocionRegreso
+            regreso_items = [item for item in self.player.inventory if isinstance(item, PocionRegreso)]
+            
+            # Resetear equipo a básico
+            arma_basica = Arma("Espada de Madera", 8, "fisico")
+            self.player.inventory = [arma_basica] + regreso_items
+            self.player.logic.arma = arma_basica
+            self.player.logic.armadura = None
+            
             self.player.logic.vida = self.player.logic.max_vida
+            self.log.add_message(f"[SISTEMA] Perdiste {xp_perdida} XP y tu equipo. Solo conservas tus Pociones de Regreso.")
             
             # Respawn en el pueblo
             self.profundidad = 0
@@ -204,20 +346,26 @@ class Game:
     def use_item(self, item):
         if isinstance(item, Pocion):
             item.usar(self.player.logic, self.log)
-            self.player.inventory.remove(item)
+            item.cantidad -= 1
+            if item.cantidad <= 0:
+                self.player.inventory.remove(item)
             if self.current_enemy:
                 self.state = "COMBAT"
                 self.resolve_enemy_turn()
             else:
                 self.state = "PLAYING"
                 
-        elif isinstance(item, Arma) or isinstance(item, Armadura):
-            # Verificar restricción de clase
-            clase_jugador = "tirador" if isinstance(self.player.logic, Tirador) else "guerrero"
-            if item.clase_permitida and item.clase_permitida != clase_jugador:
-                self.log.add_message(f"[SISTEMA] No puedes usar {item.nombre} ({item.clase_permitida}).")
-                return
-
+        elif isinstance(item, PocionRegreso):
+            item.usar(self.player.logic, self.log)
+            item.cantidad -= 1
+            if item.cantidad <= 0:
+                self.player.inventory.remove(item)
+            # Al regresar al pueblo, siempre salimos del combate si estábamos en uno
+            self.current_enemy = None
+            self.state = "PLAYING"
+            
+        elif isinstance(item, (Arma, Armadura)):
+            # Cualquier jugador puede equipar cualquier arma/armadura ahora
             if isinstance(item, Arma):
                 if hasattr(self.player.logic, 'arma'):
                     self.player.logic.arma = item
@@ -241,13 +389,23 @@ class Game:
             self.update()
             self.draw()
 
-    def quit_game(self):
+    def quit_game(self, save_filename=None):
+        if hasattr(self, 'player') and self.player:
+            if self.profundidad == 0:
+                if save_filename:
+                    SaveManager.save_game(self, save_filename)
         pygame.quit()
         sys.exit()
 
     def update(self):
         # Actualizar lógica
         self.floating_texts.update(self.dt)
+        if self.combat_intro_timer > 0:
+            self.combat_intro_timer -= self.dt
+            
+        if self.state == "PLAYING":
+            self.player.logic.update_regen(self.dt)
+            self.all_sprites.update()
 
 
     def draw_grid(self):
@@ -261,13 +419,27 @@ class Game:
         # Dibujar gráficos
         self.screen.fill(BLACK)
         
-        if self.state == "CLASS_SELECTION":
-            self.draw_class_selection()
+        if self.state == "TITLE_SCREEN":
+            self.draw_title_screen()
+            pygame.display.flip()
+            return
+
+        if self.state == "NAME_INPUT":
+            self.draw_name_input_screen()
+            pygame.display.flip()
+            return
+
+        if self.state == "LOAD_SELECTION":
+            self.draw_load_selection()
+            pygame.display.flip()
+            return
+
+        if self.state == "HELP_SCREEN":
+            self.draw_help_screen()
             pygame.display.flip()
             return
             
-        self.level.draw(self.screen)
-        
+        self.level.draw(self.screen, self)
         self.all_sprites.draw(self.screen)
         self.floating_texts.draw(self.screen)
         for enemy in self.enemies:
@@ -280,15 +452,19 @@ class Game:
         pygame.draw.line(self.screen, WHITE, (MAP_WIDTH, 0), (MAP_WIDTH, HEIGHT), 2)
 
         self.panel.draw(self.screen)
-        self.log.draw(self.screen)
+        # self.log.draw(self.screen) # Log eliminado de la UI
 
         # Overlay oscuro si hay un menú abierto
-        if self.state in ["INVENTORY", "SHOP", "BANK", "SELL", "BANK_STORE", "BANK_RETRIEVE"]:
-            overlay = pygame.Surface((MAP_WIDTH, HEIGHT), pygame.SRCALPHA)
-            overlay.fill((0, 0, 0, 150))
+        if self.state in ["INVENTORY", "SHOP", "BANK", "SELL", "BANK_STORE", "BANK_RETRIEVE", "CONFIRM_EXIT"]:
+            overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 180))
             self.screen.blit(overlay, (0, 0))
 
-        if self.state == "COMBAT":
+        if self.state == "CONFIRM_EXIT":
+            self.draw_confirm_exit()
+        elif self.state == "LEVEL_SELECTION":
+            self.draw_level_selection()
+        elif self.state == "COMBAT":
             self.draw_combat_menu()
         elif self.state == "INVENTORY":
             self.draw_inventory_menu()
@@ -302,6 +478,15 @@ class Game:
             self.draw_vault_menu(self.player.inventory, "GUARDAR EN BAUL")
         elif self.state == "BANK_RETRIEVE":
             self.draw_vault_menu(self.player.logic.baul, "RETIRAR DE BAUL")
+        elif self.state == "SAVE_SELECTION":
+            self.draw_save_selection()
+        elif self.state == "TITLE_MENU":
+            self.draw_title_menu()
+        elif self.state == "HELP_SCREEN":
+            self.draw_help_screen()
+
+        if self.combat_intro_timer > 0:
+            self.draw_combat_alert()
 
         pygame.display.flip()
 
@@ -336,53 +521,95 @@ class Game:
         for i, line in enumerate(lines[:3]):
             self.screen.blit(font.render(line, True, LIGHT_GREY), (panel_rect.x + 15, panel_rect.y + 40 + i * 20))
 
-    def draw_class_selection(self):
-        title_font = pygame.font.SysFont('Consolas', 40, bold=True)
+    def draw_title_screen(self):
+        title_font = pygame.font.SysFont('Consolas', 50, bold=True)
         font = pygame.font.SysFont('Consolas', 24)
         
-        self.screen.blit(title_font.render("ELIGE TU CLASE", True, CYAN), (WIDTH//2 - 150, HEIGHT//2 - 100))
+        # Fondo oscuro con algo de estilo
+        self.screen.fill((10, 10, 20))
         
-        color1 = YELLOW if self.clase_seleccionada == 0 else WHITE
-        self.screen.blit(font.render("1. Guerrero (100 HP, Def: 8) - Espada", True, color1), (WIDTH//2 - 250, HEIGHT//2))
+        # Título
+        title_text = "SOLID ADVENTURE LEGACY"
+        shadow = title_font.render(title_text, True, (40, 40, 60))
+        self.screen.blit(shadow, (WIDTH//2 - 295, HEIGHT//3 - 45))
+        self.screen.blit(title_font.render(title_text, True, CYAN), (WIDTH//2 - 300, HEIGHT//3 - 50))
         
-        color2 = YELLOW if self.clase_seleccionada == 1 else WHITE
-        self.screen.blit(font.render("2. Tirador (80 HP, Def: 4) - Pistola", True, color2), (WIDTH//2 - 250, HEIGHT//2 + 50))
+        options = ["NUEVA PARTIDA", "CONTINUAR", "AYUDA", "SALIR"]
+        self.save_files = SaveManager.get_save_files()
+        save_exists = len(self.save_files) > 0
         
-        self.screen.blit(font.render("Usa las Flechas y pulsa ENTER", True, LIGHT_GREY), (WIDTH//2 - 200, HEIGHT//2 + 150))
+        for i, option in enumerate(options):
+            if i == 1 and not save_exists:
+                color = DARK_GREY
+                text = option + " (Sin guardado)"
+            else:
+                color = YELLOW if i == self.menu_index else WHITE
+                text = option
+                
+            prefix = "> " if i == self.menu_index else "  "
+            self.screen.blit(font.render(prefix + text, True, color), (WIDTH//2 - 100, HEIGHT//2 + i * 50))
+
+    def get_combat_options(self):
+        options = ["Ataque Básico"]
+        t_actual = self.player.logic.titulo_actual
+        
+        # Solo mostrar habilidades especiales si NO es el título inicial
+        if t_actual != "Hoja en Blanco":
+            if "Espada" in t_actual or "Hoja" in t_actual:
+                options.append("Golpe Habilidad")
+            elif "Proyectil" in t_actual or "Arquero" in t_actual or "Halcón" in t_actual:
+                options.append("Ataque Distancia")
+                
+        options.extend(["Huir", "Inventario"])
+        return options
 
     def draw_combat_menu(self):
-        menu_rect = pygame.Rect(MAP_WIDTH // 2 - 100, HEIGHT // 2 + 100, 200, 150)
+        menu_rect = pygame.Rect(MAP_WIDTH // 2 - 120, HEIGHT // 2 + 80, 240, 180)
         pygame.draw.rect(self.screen, (20, 20, 20), menu_rect)
         pygame.draw.rect(self.screen, WHITE, menu_rect, 2)
         
         font = pygame.font.SysFont('Consolas', 20)
-        options = ["Atacar", "Usar Objeto", "Huir"]
+        options = self.get_combat_options()
         
         for i, option in enumerate(options):
             color = CYAN if i == self.menu_index else WHITE
             prefix = "> " if i == self.menu_index else "  "
             text_surface = font.render(prefix + option, True, color)
-            self.screen.blit(text_surface, (menu_rect.x + 20, menu_rect.y + 20 + i * 40))
+            self.screen.blit(text_surface, (menu_rect.x + 20, menu_rect.y + 20 + i * 35))
 
     def draw_inventory_menu(self):
         inv = self.player.inventory
-        # Ajustamos el tamaño del menú según la cantidad de items + opción Salir
         w = 450
-        h = max(200, min(HEIGHT - 100, (len(inv) + 1) * 30 + 60))
+        h = 500 # Altura fija para mayor estabilidad con scroll
         menu_rect = pygame.Rect(MAP_WIDTH // 2 - w // 2, HEIGHT // 2 - h // 2, w, h)
         pygame.draw.rect(self.screen, (20, 20, 30), menu_rect)
         pygame.draw.rect(self.screen, CYAN, menu_rect, 2)
         
         font = pygame.font.SysFont('Consolas', 18)
         title_font = pygame.font.SysFont('Consolas', 22, bold=True)
-        
-        self.screen.blit(title_font.render("INVENTARIO [Enter para usar/equipar]", True, YELLOW), (menu_rect.x + 10, menu_rect.y + 10))
+        self.screen.blit(title_font.render("INVENTARIO [Enter para usar]", True, YELLOW), (menu_rect.x + 10, menu_rect.y + 10))
         
         if len(inv) == 0:
             self.screen.blit(font.render("Vacío", True, WHITE), (menu_rect.x + 20, menu_rect.y + 50))
+            # Opción Salir si está vacío
+            color = CYAN if self.menu_index == 0 else WHITE
+            self.screen.blit(font.render("> VOLVER / SALIR", True, color), (menu_rect.x + 20, menu_rect.y + 80))
+            self.draw_description_box("Cerrar el inventario.")
             return
-            
-        for i, item in enumerate(inv):
+
+        # Lógica de Scroll
+        max_visible = (h - 100) // 30
+        if not hasattr(self, 'inv_scroll'): self.inv_scroll = 0
+        
+        # Ajustar scroll según menu_index
+        if self.menu_index < self.inv_scroll:
+            self.inv_scroll = self.menu_index
+        elif self.menu_index >= self.inv_scroll + max_visible:
+            self.inv_scroll = self.menu_index - max_visible + 1
+
+        # Dibujar items visibles
+        for i in range(self.inv_scroll, min(len(inv), self.inv_scroll + max_visible)):
+            item = inv[i]
             # Comprobar si está equipado
             logic = self.player.logic
             is_equipped = False
@@ -392,34 +619,24 @@ class Game:
             elif isinstance(item, Armadura):
                 if item == logic.armadura: is_equipped = True
 
-            # Color según estado
-            if i == self.menu_index:
-                color = CYAN
-                if is_equipped: color = (150, 255, 150) # Cian-Verde brillante
-            elif is_equipped:
-                color = GREEN
-            else:
-                color = WHITE
-            
+            color = CYAN if i == self.menu_index else (GREEN if is_equipped else WHITE)
             prefix = "> " if i == self.menu_index else "  "
             eq_tag = " [E]" if is_equipped else ""
+            cant_tag = f" x{item.cantidad}" if hasattr(item, 'cantidad') and item.cantidad > 1 else ""
             
-            extra = ""
-            if isinstance(item, Arma):
-                extra = f" ({item.daño} DMG)"
-            elif hasattr(item, 'porcentaje'):
-                extra = f" ({int(item.porcentaje*100)}%)"
-            
-            text_surface = font.render(prefix + item.nombre + extra + eq_tag, True, color)
-            self.screen.blit(text_surface, (menu_rect.x + 20, menu_rect.y + 50 + i * 30))
-            
-        # Opción Salir
+            draw_y = menu_rect.y + 50 + (i - self.inv_scroll) * 30
+            text_surface = font.render(f"{prefix}{item.nombre}{cant_tag}{eq_tag}", True, color)
+            self.screen.blit(text_surface, (menu_rect.x + 20, draw_y))
+
+        # Opción Salir (siempre al final de la lista)
         exit_idx = len(inv)
-        color = CYAN if exit_idx == self.menu_index else WHITE
-        prefix = "> " if exit_idx == self.menu_index else "  "
-        self.screen.blit(font.render(prefix + "VOLVER / SALIR", True, color), (menu_rect.x + 20, menu_rect.y + 50 + exit_idx * 30))
-        
-        # Mostrar descripción del item seleccionado
+        if exit_idx >= self.inv_scroll and exit_idx < self.inv_scroll + max_visible:
+            color = CYAN if exit_idx == self.menu_index else WHITE
+            prefix = "> " if exit_idx == self.menu_index else "  "
+            draw_y = menu_rect.y + 50 + (exit_idx - self.inv_scroll) * 30
+            self.screen.blit(font.render(prefix + "VOLVER / SALIR", True, color), (menu_rect.x + 20, draw_y))
+
+        # Mostrar descripción del seleccionado
         if self.menu_index < len(inv):
             item = inv[self.menu_index]
             self.draw_description_box(getattr(item, 'descripcion', "Sin descripción."))
@@ -478,28 +695,278 @@ class Game:
 
     def draw_vault_menu(self, items, title):
         w = 450
-        h = max(200, min(HEIGHT - 100, (len(items) + 1) * 30 + 60))
+        h = 500
         menu_rect = pygame.Rect(MAP_WIDTH // 2 - w // 2, HEIGHT // 2 - h // 2, w, h)
         pygame.draw.rect(self.screen, (10, 10, 20), menu_rect)
         pygame.draw.rect(self.screen, CYAN, menu_rect, 2)
         font = pygame.font.SysFont('Consolas', 18)
         self.screen.blit(font.render(title, True, YELLOW), (menu_rect.x + 10, menu_rect.y + 10))
-        for i, item in enumerate(items):
+
+        # Lógica de Scroll
+        max_visible = (h - 100) // 30
+        if not hasattr(self, 'vault_scroll'): self.vault_scroll = 0
+        
+        if self.menu_index < self.vault_scroll:
+            self.vault_scroll = self.menu_index
+        elif self.menu_index >= self.vault_scroll + max_visible:
+            self.vault_scroll = self.menu_index - max_visible + 1
+
+        for i in range(self.vault_scroll, min(len(items), self.vault_scroll + max_visible)):
+            item = items[i]
             color = CYAN if i == self.menu_index else WHITE
             prefix = "> " if i == self.menu_index else "  "
-            self.screen.blit(font.render(prefix + item.nombre, True, color), (menu_rect.x + 20, menu_rect.y + 40 + i * 30))
+            cant_tag = f" x{item.cantidad}" if hasattr(item, 'cantidad') and item.cantidad > 1 else ""
+            draw_y = menu_rect.y + 40 + (i - self.vault_scroll) * 30
+            self.screen.blit(font.render(prefix + item.nombre + cant_tag, True, color), (menu_rect.x + 20, draw_y))
             
         # Opción Salir
         exit_idx = len(items)
-        color = CYAN if exit_idx == self.menu_index else WHITE
-        prefix = "> " if exit_idx == self.menu_index else "  "
-        self.screen.blit(font.render(prefix + "VOLVER / SALIR", True, color), (menu_rect.x + 20, menu_rect.y + 40 + exit_idx * 30))
+        if exit_idx >= self.vault_scroll and exit_idx < self.vault_scroll + max_visible:
+            color = CYAN if exit_idx == self.menu_index else WHITE
+            prefix = "> " if exit_idx == self.menu_index else "  "
+            draw_y = menu_rect.y + 40 + (exit_idx - self.vault_scroll) * 30
+            self.screen.blit(font.render(prefix + "VOLVER / SALIR", True, color), (menu_rect.x + 20, draw_y))
         
         if self.menu_index < len(items):
             item = items[self.menu_index]
             self.draw_description_box(getattr(item, 'descripcion', "Sin descripción."))
         else:
             self.draw_description_box("Volver al menú principal del banco.")
+
+    def draw_confirm_exit(self):
+        w, h = 400, 200
+        rect = pygame.Rect(WIDTH // 2 - w // 2, HEIGHT // 2 - h // 2, w, h)
+        pygame.draw.rect(self.screen, (30, 10, 10), rect)
+        pygame.draw.rect(self.screen, RED, rect, 3)
+        
+        title_font = pygame.font.SysFont('Consolas', 24, bold=True)
+        font = pygame.font.SysFont('Consolas', 20)
+        
+        self.screen.blit(title_font.render("¿SALIR DEL JUEGO?", True, WHITE), (rect.x + 80, rect.y + 40))
+        
+        color_y = YELLOW if self.menu_index == 0 else WHITE
+        color_n = YELLOW if self.menu_index == 1 else WHITE
+        
+        self.screen.blit(font.render("> SÍ (Cerrar)", True, color_y), (rect.x + 100, rect.y + 100))
+        self.screen.blit(font.render("> NO (Seguir)", True, color_n), (rect.x + 100, rect.y + 140))
+        
+        # Mensaje de guardado
+        msg_font = pygame.font.SysFont('Consolas', 16)
+        if self.profundidad == 0:
+            msg = "Se guardará tu progreso automáticamente."
+            color = GREEN
+        else:
+            msg = "¡CUIDADO! Perderás el progreso de este piso."
+            color = RED
+        self.screen.blit(msg_font.render(msg, True, color), (rect.x + 30, rect.y + 175))
+
+    def draw_level_selection(self):
+        w, h = 500, 250
+        rect = pygame.Rect(WIDTH // 2 - w // 2, HEIGHT // 2 - h // 2, w, h)
+        pygame.draw.rect(self.screen, (10, 20, 30), rect)
+        pygame.draw.rect(self.screen, CYAN, rect, 2)
+        
+        title_font = pygame.font.SysFont('Consolas', 24, bold=True)
+        font = pygame.font.SysFont('Consolas', 20)
+        
+        self.screen.blit(title_font.render("¿A DÓNDE QUIERES IR?", True, YELLOW), (rect.x + 100, rect.y + 30))
+        
+        options = [
+            f"Entrar al Piso 1",
+            f"Saltar al Piso {self.max_profundidad}",
+            "Cancelar"
+        ]
+        
+        for i, option in enumerate(options):
+            color = CYAN if i == self.menu_index else WHITE
+            prefix = "> " if i == self.menu_index else "  "
+            self.screen.blit(font.render(prefix + option, True, color), (rect.x + 50, rect.y + 80 + i * 40))
+
+    def draw_name_input_screen(self):
+        self.screen.fill((10, 10, 20))
+        title_font = pygame.font.SysFont('Consolas', 40, bold=True)
+        font = pygame.font.SysFont('Consolas', 30)
+        
+        self.screen.blit(title_font.render("NOMBRE DE TU HÉROE", True, CYAN), (WIDTH//2 - 200, HEIGHT//2 - 100))
+        
+        # Caja de texto
+        box_rect = pygame.Rect(WIDTH//2 - 200, HEIGHT//2, 400, 50)
+        pygame.draw.rect(self.screen, (30, 30, 40), box_rect)
+        pygame.draw.rect(self.screen, YELLOW, box_rect, 2)
+        
+        name_surface = font.render(self.character_name, True, WHITE)
+        self.screen.blit(name_surface, (box_rect.x + 10, box_rect.y + 10))
+        
+        if len(self.character_name) < 15:
+            # Cursor parpadeante
+            if (pygame.time.get_ticks() // 500) % 2 == 0:
+                cursor_x = box_rect.x + 10 + font.size(self.character_name)[0]
+                pygame.draw.line(self.screen, WHITE, (cursor_x, box_rect.y + 10), (cursor_x, box_rect.y + 40), 2)
+
+        self.screen.blit(pygame.font.SysFont('Consolas', 20).render("Pulsa ENTER para confirmar", True, LIGHT_GREY), (WIDTH//2 - 130, HEIGHT//2 + 100))
+
+    def draw_load_selection(self):
+        self.screen.fill((10, 10, 20))
+        title_font = pygame.font.SysFont('Consolas', 40, bold=True)
+        font = pygame.font.SysFont('Consolas', 24)
+        
+        self.screen.blit(title_font.render("CARGAR PARTIDA", True, CYAN), (WIDTH//2 - 150, HEIGHT//2 - 200))
+        
+        if not self.save_files:
+            self.screen.blit(font.render("No hay archivos de guardado.", True, RED), (WIDTH//2 - 180, HEIGHT//2))
+            self.screen.blit(font.render("Pulsa ESC para volver", True, WHITE), (WIDTH//2 - 130, HEIGHT//2 + 50))
+            return
+
+        # Lista de archivos con scroll si es necesario
+        max_visible = 6
+        if not hasattr(self, 'load_scroll'): self.load_scroll = 0
+        if self.menu_index < self.load_scroll: self.load_scroll = self.menu_index
+        elif self.menu_index >= self.load_scroll + max_visible: self.load_scroll = self.menu_index - max_visible + 1
+
+        for i in range(self.load_scroll, min(len(self.save_files), self.load_scroll + max_visible)):
+            filename = self.save_files[i]
+            color = YELLOW if i == self.menu_index else WHITE
+            prefix = "> " if i == self.menu_index else "  "
+            self.screen.blit(font.render(prefix + filename, True, color), (WIDTH//2 - 200, HEIGHT//2 - 100 + (i - self.load_scroll) * 40))
+
+        self.screen.blit(font.render("ESC para Volver", True, LIGHT_GREY), (WIDTH//2 - 100, HEIGHT//2 + 180))
+
+    def draw_save_selection(self):
+        w, h = 500, 400
+        rect = pygame.Rect(WIDTH // 2 - w // 2, HEIGHT // 2 - h // 2, w, h)
+        pygame.draw.rect(self.screen, (10, 10, 20), rect)
+        pygame.draw.rect(self.screen, YELLOW, rect, 2)
+        
+        title_font = pygame.font.SysFont('Consolas', 24, bold=True)
+        font = pygame.font.SysFont('Consolas', 20)
+        
+        self.screen.blit(title_font.render("¿DÓNDE QUIERES GUARDAR?", True, CYAN), (rect.x + 100, rect.y + 20))
+        
+        options = ["NUEVO GUARDADO"]
+        for f in self.save_files:
+            options.append(f"Sobrescribir: {f}")
+        options.append("SALIR SIN GUARDAR")
+        options.append("CANCELAR")
+
+        max_visible = 8
+        if not hasattr(self, 'save_scroll'): self.save_scroll = 0
+        if self.menu_index < self.save_scroll: self.save_scroll = self.menu_index
+        elif self.menu_index >= self.save_scroll + max_visible: self.save_scroll = self.menu_index - max_visible + 1
+
+        for i in range(self.save_scroll, min(len(options), self.save_scroll + max_visible)):
+            color = YELLOW if i == self.menu_index else WHITE
+            prefix = "> " if i == self.menu_index else "  "
+            text = options[i]
+            if len(text) > 40: text = text[:37] + "..."
+            self.screen.blit(font.render(prefix + text, True, color), (rect.x + 30, rect.y + 60 + (i - self.save_scroll) * 35))
+
+    def draw_combat_alert(self):
+        if not self.current_enemy: return
+        
+        # Flash effect
+        alpha = int(abs(pygame.time.get_ticks() % 1000 - 500) / 500 * 150) + 100
+        overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        overlay.fill((255, 0, 0, 40 if self.combat_intro_timer > 0.5 else 0))
+        self.screen.blit(overlay, (0, 0))
+        
+        font_big = pygame.font.SysFont('Consolas', 80, bold=True)
+        font_small = pygame.font.SysFont('Consolas', 30, bold=True)
+        
+        text_vs = f"{self.character_name.upper()} VS {self.current_enemy.name.upper()}"
+        
+        # Sombra
+        shadow = font_big.render("¡COMBATE!", True, (50, 0, 0))
+        self.screen.blit(shadow, (WIDTH//2 - shadow.get_width()//2 + 5, HEIGHT//2 - 100 + 5))
+        
+        # Texto principal
+        text_surf = font_big.render("¡COMBATE!", True, RED)
+        self.screen.blit(text_surf, (WIDTH//2 - text_surf.get_width()//2, HEIGHT//2 - 100))
+        
+        # Texto secundario (VS)
+        vs_surf = font_small.render(text_vs, True, WHITE)
+        self.screen.blit(vs_surf, (WIDTH//2 - vs_surf.get_width()//2, HEIGHT//2))
+        
+        # Líneas decorativas
+        line_w = 400 * (self.combat_intro_timer / 0.8)
+        pygame.draw.line(self.screen, RED, (WIDTH//2 - line_w//2, HEIGHT//2 - 120), (WIDTH//2 + line_w//2, HEIGHT//2 - 120), 4)
+        pygame.draw.line(self.screen, RED, (WIDTH//2 - line_w//2, HEIGHT//2 + 50), (WIDTH//2 + line_w//2, HEIGHT//2 + 50), 4)
+
+    def draw_help_screen(self):
+        self.screen.fill((10, 10, 20))
+        title_font = pygame.font.SysFont('Consolas', 40, bold=True)
+        sub_font = pygame.font.SysFont('Consolas', 22, bold=True)
+        font = pygame.font.SysFont('Consolas', 18)
+        
+        self.screen.blit(title_font.render("GUÍA DEL JUEGO", True, CYAN), (WIDTH//2 - 250, 50))
+        
+        sections = [
+            ("CONTROLES BÁSICOS", [
+                "- Flechas / WASD: Moverse por el mundo.",
+                "- Enter: Confirmar acciones en menús.",
+                "- Esc: Volver o salir.",
+                "- Tecla I: Abrir el Inventario.",
+                "- Tecla T: Menú de Títulos (Identidad)."
+            ]),
+            ("EL SISTEMA DE TÍTULOS", [
+                "Cada título otorga beneficios únicos y especializaciones.",
+                "El mundo observa cómo luchas y cómo vives.",
+                "Descubre como obtener los titulos jugando, esto reemplaza el sistema de clases."
+            ]),
+            ("COMBATE Y EXPLORACIÓN", [
+                "- El combate es por turnos. Elige bien tu estrategia.",
+                "- Puedes encontrar cofres y NPCs en el calabozo y el pueblo.",
+                "- Solo puedes guardar tu partida en el PUEBLO.",
+                "- Morir en el calabozo tiene penalizaciones de equipo y dinero."
+            ])
+        ]
+        
+        y = 130
+        for title, lines in sections:
+            self.screen.blit(sub_font.render(title, True, YELLOW), (100, y))
+            y += 30
+            for line in lines:
+                self.screen.blit(font.render(line, True, WHITE), (120, y))
+                y += 25
+            y += 20
+            
+        self.screen.blit(font.render("Pulsa ESC o ENTER para volver", True, LIGHT_GREY), (WIDTH//2 - 150, HEIGHT - 80))
+
+    def draw_title_menu(self):
+        w, h = 500, 450
+        rect = pygame.Rect(MAP_WIDTH // 2 - w // 2, HEIGHT // 2 - h // 2, w, h)
+        pygame.draw.rect(self.screen, (20, 20, 35), rect)
+        pygame.draw.rect(self.screen, CYAN, rect, 2)
+        
+        font = pygame.font.SysFont('Consolas', 18)
+        title_font = pygame.font.SysFont('Consolas', 22, bold=True)
+        self.screen.blit(title_font.render("CONTRATOS DE IDENTIDAD (TÍTULOS)", True, YELLOW), (rect.x + 20, rect.y + 20))
+        
+        from logic.personaje import TITULOS_DATA
+        titulos = self.player.logic.titulos_desbloqueados
+        
+        for i, t_name in enumerate(titulos):
+            t_data = TITULOS_DATA.get(t_name, {})
+            is_passive = t_data.get("tipo") == "pasivo"
+            is_active = t_name == self.player.logic.titulo_actual
+            
+            color = YELLOW if i == self.menu_index else (GREEN if is_active else (CYAN if is_passive else WHITE))
+            prefix = "> " if i == self.menu_index else ("* " if is_active else ("+ " if is_passive else "  "))
+            suffix = " (PASIVO)" if is_passive else ""
+            
+            self.screen.blit(font.render(f"{prefix}{t_name}{suffix}", True, color), (rect.x + 30, rect.y + 70 + i * 35))
+            
+        # Opción Salir
+        exit_idx = len(titulos)
+        color = YELLOW if exit_idx == self.menu_index else WHITE
+        self.screen.blit(font.render(f"{'> ' if exit_idx == self.menu_index else '  '}VOLVER", True, color), (rect.x + 30, rect.y + 70 + exit_idx * 35))
+        
+        # Descripción del seleccionado
+        if self.menu_index < len(titulos):
+            t_name = titulos[self.menu_index]
+            desc = TITULOS_DATA[t_name]["descripcion"]
+            self.draw_description_box(desc)
+        else:
+            self.draw_description_box("Cerrar el menú de títulos.")
 
     def events(self):
         # Manejo de eventos
@@ -508,16 +975,61 @@ class Game:
                 self.quit_game()
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    self.quit_game()
+                    if self.state == "CONFIRM_EXIT":
+                        self.state = self.prev_state
+                    else:
+                        self.prev_state = self.state
+                        self.state = "CONFIRM_EXIT"
+                        self.menu_index = 1 # Por defecto en 'NO'
                 
-                if self.state == "CLASS_SELECTION":
+                if self.state == "TITLE_SCREEN":
                     if event.key == pygame.K_UP or event.key == pygame.K_w:
-                        self.clase_seleccionada = 0
+                        self.menu_index = max(0, self.menu_index - 1)
                     elif event.key == pygame.K_DOWN or event.key == pygame.K_s:
-                        self.clase_seleccionada = 1
+                        self.menu_index = min(3, self.menu_index + 1)
                     elif event.key == pygame.K_RETURN:
-                        clase_str = "guerrero" if self.clase_seleccionada == 0 else "tirador"
-                        self.start_game(clase_str)
+                        if self.menu_index == 0: # Nueva Partida
+                            self.state = "NAME_INPUT"
+                            self.character_name = ""
+                        elif self.menu_index == 1: # Continuar
+                            self.save_files = SaveManager.get_save_files()
+                            if self.save_files:
+                                self.state = "LOAD_SELECTION"
+                                self.menu_index = 0
+                        elif self.menu_index == 2: # Ayuda
+                            self.state = "HELP_SCREEN"
+                        elif self.menu_index == 3: # Salir
+                            self.quit_game()
+
+                elif self.state == "HELP_SCREEN":
+                    if event.key == pygame.K_ESCAPE or event.key == pygame.K_RETURN:
+                        self.state = "TITLE_SCREEN"
+                        self.menu_index = 2
+
+                elif self.state == "LOAD_SELECTION":
+                    if event.key == pygame.K_ESCAPE:
+                        self.state = "TITLE_SCREEN"
+                        self.menu_index = 1
+                    elif event.key == pygame.K_UP or event.key == pygame.K_w:
+                        self.menu_index = max(0, self.menu_index - 1)
+                    elif event.key == pygame.K_DOWN or event.key == pygame.K_s:
+                        self.menu_index = min(len(self.save_files) - 1, self.menu_index + 1)
+                    elif event.key == pygame.K_RETURN:
+                        if self.save_files:
+                            filename = self.save_files[self.menu_index]
+                            save_data = SaveManager.load_game(filename)
+                            if save_data:
+                                self.start_saved_game(save_data)
+
+                elif self.state == "NAME_INPUT":
+                    if event.key == pygame.K_BACKSPACE:
+                        self.character_name = self.character_name[:-1]
+                    elif event.key == pygame.K_RETURN:
+                        if len(self.character_name.strip()) > 0:
+                            self.start_game("aventurero", self.character_name.strip())
+                    elif event.unicode.isalnum() or event.key == pygame.K_SPACE:
+                        if len(self.character_name) < 15:
+                            self.character_name += event.unicode
                         
                 elif self.state == "PLAYING":
                     # Movimiento
@@ -532,12 +1044,16 @@ class Game:
                     if event.key == pygame.K_i:
                         self.state = "INVENTORY"
                         self.menu_index = 0
+                    if event.key == pygame.K_t:
+                        self.state = "TITLE_MENU"
+                        self.menu_index = 0
                 
                 elif self.state == "COMBAT":
+                    options = self.get_combat_options()
                     if event.key == pygame.K_UP or event.key == pygame.K_w:
                         self.menu_index = max(0, self.menu_index - 1)
                     if event.key == pygame.K_DOWN or event.key == pygame.K_s:
-                        self.menu_index = min(2, self.menu_index + 1)
+                        self.menu_index = min(len(options) - 1, self.menu_index + 1)
                     if event.key == pygame.K_RETURN:
                         self.resolve_combat_action()
 
@@ -566,7 +1082,7 @@ class Game:
                         if self.menu_index == 0:
                             if self.player.logic.gastar_monedas(100):
                                 item = Pocion("media")
-                                self.player.inventory.append(item)
+                                self.player.add_to_inventory(item)
                                 self.log.add_message("[MERCADER] ¡Aquí tienes!")
                                 self.spawn_floating_text(f"+{item.nombre}", self.player.rect.centerx, self.player.rect.top, YELLOW)
                             else:
@@ -574,9 +1090,13 @@ class Game:
                         elif self.menu_index == 1:
                             if self.player.logic.gastar_monedas(500):
                                 dmg = random.randint(20 + self.player.logic.nivel*2, 40 + self.player.logic.nivel*5)
-                                clase_jugador = "tirador" if isinstance(self.player.logic, Tirador) else "guerrero"
-                                item = Arma(f"Arma lvl {self.player.logic.nivel}", dmg, clase_jugador)
-                                self.player.inventory.append(item)
+                                # Determinar tipo basado en título activo o azar
+                                t_actual = self.player.logic.titulo_actual
+                                if "Proyectil" in t_actual or "Arquero" in t_actual or "Halcón" in t_actual:
+                                    item = Arma(f"Arco lvl {self.player.logic.nivel}", dmg, "distancia")
+                                else:
+                                    item = Arma(f"Espada lvl {self.player.logic.nivel}", dmg, "fisico")
+                                self.player.add_to_inventory(item)
                                 self.log.add_message("[MERCADER] ¡Excelente arma!")
                                 self.spawn_floating_text(f"+{item.nombre}", self.player.rect.centerx, self.player.rect.top, YELLOW)
                             else:
@@ -584,7 +1104,7 @@ class Game:
                         elif self.menu_index == 2:
                             if self.player.logic.gastar_monedas(10):
                                 item = PocionRegreso()
-                                self.player.inventory.append(item)
+                                self.player.add_to_inventory(item)
                                 self.log.add_message("[MERCADER] Regresa a salvo.")
                                 self.spawn_floating_text(f"+{item.nombre}", self.player.rect.centerx, self.player.rect.top, YELLOW)
                             else:
@@ -606,7 +1126,7 @@ class Game:
                         self.menu_index = 0
                     if event.key == pygame.K_RETURN:
                         if self.menu_index < len(inv):
-                            item = inv.pop(self.menu_index)
+                            item = inv[self.menu_index]
                             # Precio de venta: 1/2 del precio de compra aprox
                             valor = 50 # Base
                             if isinstance(item, Arma): valor = 200
@@ -614,7 +1134,12 @@ class Game:
                             
                             self.player.logic.añadir_monedas(valor)
                             self.log.add_message(f"[MERCADER] Te doy {valor} Cob por {item.nombre}.")
-                            self.menu_index = max(0, self.menu_index - 1)
+                            
+                            if hasattr(item, 'cantidad') and item.cantidad > 1:
+                                item.cantidad -= 1
+                            else:
+                                inv.pop(self.menu_index)
+                                self.menu_index = max(0, self.menu_index - 1)
                         else:
                             self.state = "SHOP"
                             self.menu_index = 3
@@ -657,10 +1182,43 @@ class Game:
                         self.menu_index = 2
                     if event.key == pygame.K_RETURN:
                         if self.menu_index < len(inv):
-                            item = inv.pop(self.menu_index)
-                            self.player.logic.baul.append(item)
+                            item = inv[self.menu_index]
+                            
+                            # Intentar apilar en el baúl
+                            found = False
+                            if isinstance(item, (Pocion, PocionRegreso)):
+                                for b_item in self.player.logic.baul:
+                                    if type(b_item) == type(item):
+                                        if isinstance(item, Pocion):
+                                            if b_item.tipo == item.tipo:
+                                                b_item.cantidad += 1
+                                                found = True
+                                                break
+                                        else: # PocionRegreso
+                                            b_item.cantidad += 1
+                                            found = True
+                                            break
+                            
+                            if not found:
+                                # Crear una copia para el baúl o mover el objeto
+                                # Si es un stack, creamos uno nuevo con cantidad 1
+                                if hasattr(item, 'cantidad') and item.cantidad > 1:
+                                    import copy
+                                    new_item = copy.copy(item)
+                                    new_item.cantidad = 1
+                                    self.player.logic.baul.append(new_item)
+                                else:
+                                    self.player.logic.baul.append(inv.pop(self.menu_index))
+                                    self.menu_index = max(0, self.menu_index - 1)
+                            else:
+                                # Si se apiló, reducir cantidad del inv
+                                if hasattr(item, 'cantidad') and item.cantidad > 1:
+                                    item.cantidad -= 1
+                                else:
+                                    inv.pop(self.menu_index)
+                                    self.menu_index = max(0, self.menu_index - 1)
+
                             self.log.add_message(f"[BANQUERO] {item.nombre} guardado.")
-                            self.menu_index = max(0, self.menu_index - 1)
                         else:
                             self.state = "BANK"
                             self.menu_index = 2
@@ -676,13 +1234,103 @@ class Game:
                         self.menu_index = 3
                     if event.key == pygame.K_RETURN:
                         if self.menu_index < len(baul):
-                            item = baul.pop(self.menu_index)
-                            self.player.inventory.append(item)
+                            item = baul[self.menu_index]
+                            self.player.add_to_inventory(item)
+                            
+                            if hasattr(item, 'cantidad') and item.cantidad > 1:
+                                item.cantidad -= 1
+                            else:
+                                baul.pop(self.menu_index)
+                                self.menu_index = max(0, self.menu_index - 1)
+                            
                             self.log.add_message(f"[BANQUERO] {item.nombre} retirado.")
-                            self.menu_index = max(0, self.menu_index - 1)
                         else:
                             self.state = "BANK"
                             self.menu_index = 3
+
+                elif self.state == "CONFIRM_EXIT":
+                    if event.key == pygame.K_UP or event.key == pygame.K_w or event.key == pygame.K_DOWN or event.key == pygame.K_s:
+                        self.menu_index = 1 - self.menu_index # Alternar entre 0 y 1
+                    if event.key == pygame.K_RETURN:
+                        if self.menu_index == 0:
+                            if self.profundidad == 0:
+                                self.state = "SAVE_SELECTION"
+                                self.save_files = SaveManager.get_save_files()
+                                self.menu_index = 0
+                            else:
+                                self.quit_game()
+                        else:
+                            self.state = self.prev_state
+                    if event.key == pygame.K_n:
+                        self.state = self.prev_state
+                    if event.key == pygame.K_y or event.key == pygame.K_s:
+                        if self.profundidad == 0:
+                            self.state = "SAVE_SELECTION"
+                            self.save_files = SaveManager.get_save_files()
+                            self.menu_index = 0
+                        else:
+                            self.quit_game()
+
+                elif self.state == "SAVE_SELECTION":
+                    options_count = len(self.save_files) + 3 # Nuevo, Existentes, Salir sin guardar, Cancelar
+                    if event.key == pygame.K_UP or event.key == pygame.K_w:
+                        self.menu_index = max(0, self.menu_index - 1)
+                    elif event.key == pygame.K_DOWN or event.key == pygame.K_s:
+                        self.menu_index = min(options_count - 1, self.menu_index + 1)
+                    elif event.key == pygame.K_RETURN:
+                        if self.menu_index == 0: # Nuevo Guardado
+                            self.quit_game() # SaveManager.save_game se llama con None (genera uno nuevo)
+                        elif self.menu_index <= len(self.save_files): # Sobrescribir existente
+                            filename = self.save_files[self.menu_index - 1]
+                            self.quit_game(filename)
+                        elif self.menu_index == len(self.save_files) + 1: # Salir sin guardar
+                            pygame.quit()
+                            sys.exit()
+                        else: # Cancelar
+                            self.state = "CONFIRM_EXIT"
+                            self.menu_index = 0
+                    elif event.key == pygame.K_ESCAPE:
+                        self.state = "CONFIRM_EXIT"
+                        self.menu_index = 0
+
+                elif self.state == "TITLE_MENU":
+                    titulos = self.player.logic.titulos_desbloqueados
+                    if event.key == pygame.K_UP or event.key == pygame.K_w:
+                        self.menu_index = max(0, self.menu_index - 1)
+                    if event.key == pygame.K_DOWN or event.key == pygame.K_s:
+                        self.menu_index = min(len(titulos), self.menu_index + 1)
+                    if event.key == pygame.K_ESCAPE or event.key == pygame.K_t:
+                        self.state = "PLAYING"
+                    if event.key == pygame.K_RETURN:
+                        if self.menu_index < len(titulos):
+                            nuevo = titulos[self.menu_index]
+                            t_data = TITULOS_DATA.get(nuevo, {})
+                            if t_data.get("tipo") == "pasivo":
+                                self.log.add_message("[SISTEMA] Este título es pasivo y ya está activo.")
+                            elif self.player.logic.cambiar_titulo(nuevo):
+                                self.log.add_message(f"[TITULO] Equipado: {nuevo}")
+                                self.state = "PLAYING"
+                        else:
+                            self.state = "PLAYING"
+
+                elif self.state == "LEVEL_SELECTION":
+                    if event.key == pygame.K_UP or event.key == pygame.K_w:
+                        self.menu_index = max(0, self.menu_index - 1)
+                    if event.key == pygame.K_DOWN or event.key == pygame.K_s:
+                        self.menu_index = min(2, self.menu_index + 1)
+                    if event.key == pygame.K_RETURN:
+                        if self.menu_index == 0: # Piso 1
+                            self.profundidad = 1
+                            self.went_down = True
+                            self.load_level()
+                        elif self.menu_index == 1: # Max Piso
+                            self.profundidad = self.max_profundidad
+                            self.went_down = True
+                            self.load_level()
+                        else: # Cancelar
+                            self.state = "PLAYING"
+                    if event.key == pygame.K_ESCAPE:
+                        self.state = "PLAYING"
 
 if __name__ == "__main__":
     g = Game()

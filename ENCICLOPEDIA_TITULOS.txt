@@ -1,0 +1,113 @@
+==========================================================
+        ENCICLOPEDIA DE IDENTIDAD - SOLID ADVENTURE
+==========================================================
+
+Este documento detalla el funcionamiento del Sistema de Títulos,
+las especializaciones de combate y las mecánicas de supervivencia.
+
+----------------------------------------------------------
+1. CONCEPTOS FUNDAMENTALES
+----------------------------------------------------------
+
+CONTRATOS (ACTIVOS): 
+Son títulos que equipas en el menú [T]. Solo puedes tener UNO.
+Definen tu especialidad, tus bonos de ataque/defensa y el 
+TIPO DE DAÑO que infliges.
+
+HUELLAS (PASIVOS): 
+Son títulos que, una vez desbloqueados, SIEMPRE están activos.
+Sus efectos son acumulativos y no ocupan el espacio de contrato.
+
+----------------------------------------------------------
+2. SENDA DEL ACERO (ESPADAS / DAÑO DE HABILIDAD)
+----------------------------------------------------------
+Especialidad en combate cuerpo a cuerpo pesado.
+
+- APRENDIZ DE ESPADA: 
+  * Bono: +5 Fuerza. +2 de daño con armas melee o ataques básicos.
+  * Req: 200 usos de espada.
+- ESPADACHÍN DE GRADO III: 
+  * Bono: +15 Fuerza, +5 Defensa. +8 de daño melee.
+  * Req: 1000 usos, 100 Goblins, Título Anterior.
+- MAESTRO DE LA HOJA: 
+  * Bono: +40 Fuerza, +15 Defensa. +15 de daño melee.
+  * Req: 5000 usos, 200 Orcos, Título Anterior.
+
+----------------------------------------------------------
+3. SENDA DEL OJO DE ÁGUILA (ARCOS / DAÑO A DISTANCIA)
+----------------------------------------------------------
+Especialidad en agilidad y combate remoto.
+
+- INICIADO EN PROYECTILES: 
+  * Bono: +6 Fuerza. +2 de daño con armas a distancia.
+  * Req: 200 usos de proyectil.
+- ARQUERO DE ÉLITE: 
+  * Bono: +18 Fuerza, +8 de daño a distancia.
+  * Req: 1000 usos, 100 Slimes, Título Anterior.
+- HALCÓN DEL ABISMO: 
+  * Bono: +45 Fuerza, +15 de daño a distancia.
+  * Req: 5000 usos, 300 muertes totales, Título Anterior.
+
+----------------------------------------------------------
+4. SENDA DEL EXTERMINADOR (CAZA DE MONSTRUOS)
+----------------------------------------------------------
+Bonos defensivos basados en la eliminación de enemigos.
+
+- CAZADOR DE SLIMES: +4 Def. (100 Slimes).
+- AZOTE DE GOBLINS: +10 Def, +10 Fuerza. (250 Goblins).
+- LEYENDA DEL CALABOZO: +30 Def, +30 Fuerza, +100 Vida. (10000 Kills).
+
+----------------------------------------------------------
+5. SENDA DEL CONQUISTADOR (PROGRESO Y EXPLORACIÓN)
+----------------------------------------------------------
+Bonos de vitalidad basados en tu nivel y profundidad.
+
+- AVENTURERO DEL PUEBLO: +30 Vida. (Nivel 10).
+- EXPLORADOR DEL ABISMO: +100 Vida, +5 Fuerza. (Piso 20).
+- SOBERANO DE LAS PROFUNDIDADES: +300 Vida, +20 Atk, +20 Def. (Lvl 50, 100 Cofres).
+
+----------------------------------------------------------
+6. LÍNEAS PASIVAS DE SUPERVIVENCIA (DIFICULTAD EXTREMA)
+----------------------------------------------------------
+
+A. LÍNEA DE ESQUIVA (6 NIVELES)
+Otorga probabilidades de evitar daño Físico, Trampas, Distancia, Magia y Habilidades.
+
+1. ESQUIVA DE NOVATO: 2% esquiva básica. (Req: Recibir 100 golpes a <15% HP).
+2. ESQUIVA DE INICIADO: 4% básica, 10% trampas. (Req: 200 golpes a <25% HP, 60 activaciones Novato).
+3. ESQUIVA INTERMEDIO: 6% básica, 20% trampa, 2% otros. (Req: 200 golpes a <25% HP, 15 trampas, 60 activaciones Iniciado).
+4. ESQUIVA DE VETERANO: 8% básica, 30% trampa, 4% otros. (Req: 200 golpes a <20% HP, 30 trampas, 80 activaciones Intermedio).
+5. ESQUIVA DE EXPERTO: 9% básica, 35% trampa, 6% otros. (Req: 200 golpes a <18% HP, 40 trampas, 80 activaciones Veterano).
+6. ESQUIVA DE MAESTRO: 12% esquiva general absoluta. (Req: 300 golpes a <16% HP, 50 trampas, 80 activaciones Experto).
+
+B. LÍNEA DE ÚLTIMO ALIENTO (6 NIVELES)
+Cura automáticamente al bajar de cierto umbral de vida (Una vez por combate).
+
+1. ÚLTIMO ALIENTO NOVATO: Al bajar de 10 HP, cura 30%. (Req: Sobrevivir 50 combates <15% HP).
+2. ÚLTIMO ALIENTO INICIADO: Al bajar de 12 HP, cura 40%. (Req: 100 combates <20% HP, 60 activaciones Novato).
+3. ÚLTIMO ALIENTO INTERMEDIO: Al bajar de 15 HP, cura 50%. (Req: 150 combates <25% HP, 60 activaciones Iniciado).
+4. ÚLTIMO ALIENTO VETERANO: Al bajar de 18 HP, cura 60%. (Req: 200 combates <25% HP, 80 activaciones Intermedio).
+5. ÚLTIMO ALIENTO EXPERTO: Al bajar de 20 HP, cura 70%. (Req: 250 combates <25% HP, 80 activaciones Veterano).
+6. ÚLTIMO ALIENTO DE MAESTRO: Al bajar de 20 HP, cura 80%. (Req: 350 combates <25% HP, 100 activaciones Experto).
+
+C. LÍNEA DE REGENERACIÓN (5 NIVELES)
+Recuperación constante y probabilidad de absorción masiva por turno.
+
+1. REGEN. BAJA: 2% HP (5% chance), +2 flat/seg. (Req: 2,000 HP regenerados total).
+2. REGEN. INTERMEDIA: 5% HP (5% chance), +4 flat. (Req: 10,000 HP regen, 100 activaciones Baja).
+3. REGEN. MEDIA: 8% HP (5% chance), +6 flat. (Req: 25,000 HP regen, 150 activaciones Intermedia).
+4. REGEN. ALTA: 12% HP (5% chance), +10 flat. (Req: 60,000 HP regen, 200 activaciones Media).
+5. REGEN. SUPERIOR: 50% HP (5% chance), +20 flat. (Req: 150,000 HP regen, 300 activaciones Alta).
+
+----------------------------------------------------------
+7. TIPOS DE DAÑO Y ESQUIVA
+----------------------------------------------------------
+El sistema de combate distingue entre:
+- FÍSICO: Golpes estándar.
+- DISTANCIA: Proyectiles (Tiradores).
+- HABILIDAD: Técnicas de espada (Guerreros).
+- MÁGICO: Hechizos y habilidades arcanas.
+- TRAMPA: Daño de entorno en el calabozo.
+
+Tu esquiva pasiva calculará la probabilidad de éxito basándose 
+específicamente en el tipo de ataque recibido.

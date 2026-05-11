@@ -19,6 +19,11 @@ class Level:
             self.sprites['pasto_mucho'] = pygame.image.load('assets/sprites/pasto_mucho.png').convert_alpha()
             self.sprites['pasto_poco'] = pygame.image.load('assets/sprites/pasto_poco.png').convert_alpha()
             self.sprites['tierra_camino'] = pygame.image.load('assets/sprites/tierra camino.png').convert_alpha()
+            self.sprites['dungeon_wall'] = pygame.image.load('assets/sprites/dungeon_wall.png').convert_alpha()
+            self.sprites['dungeon_floor'] = pygame.image.load('assets/sprites/dungeon_floor.png').convert_alpha()
+            self.sprites['wall_top'] = pygame.image.load('assets/sprites/wall_top.png').convert_alpha()
+            self.sprites['wall_front'] = pygame.image.load('assets/sprites/wall_front.png').convert_alpha()
+            self.sprites['floor_tile'] = pygame.image.load('assets/sprites/floor_tile.png').convert_alpha()
             
             # Escalar
             for key in self.sprites:
@@ -41,38 +46,78 @@ class Level:
 
         # Llenar todo de muros (1) para calabozo
         self.map_data = [[1 for _ in range(self.width_tiles)] for _ in range(self.height_tiles)]
-        
-        # Generación procedimental simple: random walk (borracho)
-        # Empezar en el centro
-        x = self.width_tiles // 2
-        y = self.height_tiles // 2
-        self.map_data[y][x] = 0
-        self.floor_tiles = [(x, y)]
-        
-        # Iteraciones para vaciar espacio
-        max_floor_tiles = (self.width_tiles * self.height_tiles) // 3
-        current_floor_tiles = 1
-        
-        while current_floor_tiles < max_floor_tiles:
-            direction = random.choice([(0, 1), (0, -1), (1, 0), (-1, 0)])
-            x += direction[0]
-            y += direction[1]
-            
-            # Mantenerse dentro de los límites
-            x = max(1, min(self.width_tiles - 2, x))
-            y = max(1, min(self.height_tiles - 2, y))
-            
-            if self.map_data[y][x] == 1:
-                self.map_data[y][x] = 0
-                self.floor_tiles.append((x, y))
-                current_floor_tiles += 1
-                
-        # Colocar escaleras de subida en el punto de inicio
-        self.stairs_up = self.floor_tiles[0]
-        # Colocar escaleras de bajada en el último punto generado
-        self.stairs_down = self.floor_tiles[-1]
+        self.floor_tiles = []
+        rooms = []
+        max_rooms = 6 + self.profundidad // 3 # Menos habitaciones pero más grandes
+        min_room_size = 6
+        max_room_size = 12
 
-    def draw(self, surface):
+        for _ in range(max_rooms):
+            # Tamaño y posición aleatoria
+            w = random.randint(min_room_size, max_room_size)
+            h = random.randint(min_room_size, max_room_size)
+            x = random.randint(1, self.width_tiles - w - 1)
+            y = random.randint(1, self.height_tiles - h - 1)
+
+            new_room = pygame.Rect(x, y, w, h)
+            
+            # Verificar si se cruza con otras habitaciones
+            intersects = False
+            for other_room in rooms:
+                if new_room.inflate(2, 2).colliderect(other_room): # Margen de 1 tile
+                    intersects = True
+                    break
+            
+            if not intersects:
+                self.carve_room(new_room)
+                if len(rooms) > 0:
+                    # Conectar con la habitación anterior
+                    prev_x, prev_y = rooms[-1].center
+                    new_x, new_y = new_room.center
+                    self.carve_corridor(prev_x, prev_y, new_x, new_y)
+                
+                rooms.append(new_room)
+
+        # Recopilar todas las baldosas de suelo
+        for y in range(self.height_tiles):
+            for x in range(self.width_tiles):
+                if self.map_data[y][x] == 0:
+                    self.floor_tiles.append((x, y))
+
+        if rooms:
+            # Colocar escaleras en la primera y última habitación
+            self.stairs_up = rooms[0].center
+            self.stairs_down = rooms[-1].center
+        else:
+            # Fallback por si no se generó ninguna habitación (muy improbable)
+            self.stairs_up = (self.width_tiles // 2, self.height_tiles // 2)
+            self.stairs_down = (self.width_tiles // 2, self.height_tiles // 2)
+
+    def carve_room(self, room):
+        for y in range(room.y, room.y + room.height):
+            for x in range(room.x, room.x + room.width):
+                self.map_data[y][x] = 0
+
+    def carve_corridor(self, x1, y1, x2, y2):
+        # Pasillo en L
+        if random.random() < 0.5:
+            # Horizontal luego vertical
+            self.carve_h_line(x1, x2, y1)
+            self.carve_v_line(y1, y2, x2)
+        else:
+            # Vertical luego horizontal
+            self.carve_v_line(y1, y2, x1)
+            self.carve_h_line(x1, x2, y2)
+
+    def carve_h_line(self, x1, x2, y):
+        for x in range(min(x1, x2), max(x1, x2) + 1):
+            self.map_data[y][x] = 0
+
+    def carve_v_line(self, y1, y2, x):
+        for y in range(min(y1, y2), max(y1, y2) + 1):
+            self.map_data[y][x] = 0
+
+    def draw(self, surface, game=None):
         for y, row in enumerate(self.map_data):
             for x, tile in enumerate(row):
                 rect = pygame.Rect(x * TILESIZE, y * TILESIZE, TILESIZE, TILESIZE)
@@ -85,9 +130,9 @@ class Level:
                     else:
                         # Suelo del pueblo (Pasto variado o camino)
                         if 'pasto_mucho' in self.sprites:
-                            # Variedad basada en posición
-                            random.seed(x * 77 + y * 33)
-                            choice = random.random()
+                            # Variedad basada en posición (local RNG para no afectar la generación del mapa)
+                            local_rng = random.Random(x * 77 + y * 33)
+                            choice = local_rng.random()
                             
                             # Crear un "camino" central simple para demostrar el sprite
                             if abs(y - self.height_tiles // 2) <= 1:
@@ -99,31 +144,52 @@ class Level:
                         else:
                             pygame.draw.rect(surface, (20, 80, 20), rect) # Fallback verde
                 else:
-                    # Dibujar Calabozo (estilo clásico)
+                    # Dibujar Calabozo con Profundidad (Estilo Zelda/Reference)
                     if tile == 1:
-                        # Muro
-                        pygame.draw.rect(surface, LIGHT_GREY, rect)
-                        pygame.draw.rect(surface, DARK_GREY, rect, 1) # Borde
+                        # Determinar si es parte superior o cara frontal
+                        # Si abajo hay suelo (0), es una cara frontal
+                        is_front = False
+                        if y + 1 < self.height_tiles and self.map_data[y+1][x] == 0:
+                            is_front = True
+                            
+                        if is_front and 'wall_front' in self.sprites:
+                            surface.blit(self.sprites['wall_front'], rect)
+                        elif not is_front and 'wall_top' in self.sprites:
+                            surface.blit(self.sprites['wall_top'], rect)
+                        else:
+                            # Fallback
+                            color = DARK_GREY if is_front else LIGHT_GREY
+                            pygame.draw.rect(surface, color, rect)
                     else:
                         # Suelo
-                        pygame.draw.rect(surface, (20, 20, 20), rect)
-                        pygame.draw.rect(surface, (30, 30, 30), rect, 1) # Borde
+                        if 'floor_tile' in self.sprites:
+                            surface.blit(self.sprites['floor_tile'], rect)
+                        else:
+                            pygame.draw.rect(surface, (30, 25, 20), rect) # Color tierra/piedra
 
         # Decoración (estrellas/puntos en el suelo para el calabozo)
-        if self.profundidad > 0:
+        # Solo dibujar si NO estamos usando sprites de suelo para evitar "ruido"
+        if self.profundidad > 0 and 'dungeon_floor' not in self.sprites:
             for tile_x, tile_y in self.floor_tiles:
-                random.seed(tile_x * 100 + tile_y) 
+                local_rng = random.Random(tile_x * 100 + tile_y) 
                 for _ in range(2):
-                    px = tile_x * TILESIZE + random.randint(5, TILESIZE - 5)
-                    py = tile_y * TILESIZE + random.randint(5, TILESIZE - 5)
+                    px = tile_x * TILESIZE + local_rng.randint(5, TILESIZE - 5)
+                    py = tile_y * TILESIZE + local_rng.randint(5, TILESIZE - 5)
                     pygame.draw.circle(surface, (100, 100, 100), (px, py), 1)
 
         # Dibujar escaleras
         font = pygame.font.SysFont('Consolas', 30, bold=True)
+        # En el calabozo, las escaleras se ven "bloqueadas" (rojas) si hay enemigos
+        is_cleared = True
+        if game and self.profundidad > 0 and len(game.enemies) > 0:
+            is_cleared = False
+            
         if self.stairs_down:
             rect = pygame.Rect(self.stairs_down[0] * TILESIZE, self.stairs_down[1] * TILESIZE, TILESIZE, TILESIZE)
-            pygame.draw.rect(surface, (50, 20, 100), rect)
-            surface.blit(font.render(">", True, WHITE), (rect.x + TILESIZE//3, rect.y + TILESIZE//4))
+            color = (50, 20, 100) if is_cleared else (150, 0, 0)
+            pygame.draw.rect(surface, color, rect)
+            label = ">" if is_cleared else "X"
+            surface.blit(font.render(label, True, WHITE), (rect.x + TILESIZE//3, rect.y + TILESIZE//4))
             
         if self.stairs_up:
             rect = pygame.Rect(self.stairs_up[0] * TILESIZE, self.stairs_up[1] * TILESIZE, TILESIZE, TILESIZE)

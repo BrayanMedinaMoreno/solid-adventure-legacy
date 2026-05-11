@@ -1,36 +1,59 @@
 class Pocion:
     def __init__(self, tipo="media"):
+        self.cantidad = 1
         self.tipo = tipo # "pequeña", "media", "grande"
         if tipo == "pequeña":
             self.nombre = "Pocion Pequeña"
             self.porcentaje = 0.20
-            self.descripcion = "Recupera el 20% de tu salud máxima."
+            self.descripcion = "[CONSUMIBLE] Recupera el 20% de tu salud máxima."
         elif tipo == "grande":
             self.nombre = "Pocion Grande"
             self.porcentaje = 1.0
-            self.descripcion = "Recupera TODA tu salud máxima."
+            self.descripcion = "[CONSUMIBLE] Recupera TODA tu salud máxima."
         else:
             self.nombre = "Pocion Media"
             self.porcentaje = 0.50
-            self.descripcion = "Recupera el 50% de tu salud máxima."
+            self.descripcion = "[CONSUMIBLE] Recupera el 50% de tu salud máxima."
 
     def usar(self, personaje, log):
         curacion = int(personaje.max_vida * self.porcentaje)
         personaje.curar(curacion)
         log.add_message(f"[TÚ] Usas {self.nombre} (+{curacion} HP)")
 
+    def to_dict(self):
+        return {
+            "type": "Pocion",
+            "tipo": self.tipo,
+            "cantidad": self.cantidad
+        }
+
+    @classmethod
+    def from_dict(cls, data):
+        p = cls(data["tipo"])
+        p.cantidad = data["cantidad"]
+        return p
+
 class PocionRegreso:
     def __init__(self):
+        self.cantidad = 1
         self.nombre = "Pocion de Regreso"
-        self.descripcion = "Te teletransporta al pueblo. Pierdes 10% XP."
+        self.descripcion = "[CONSUMIBLE] Te teletransporta al pueblo de forma segura. No tiene penalizaciones."
 
     def usar(self, personaje, log):
-        # Penalidad del 10% de la XP actual
-        penalidad = int(personaje.xp * 0.10)
-        personaje.xp -= penalidad
-        log.add_message(f"[TÚ] Usas {self.nombre}. (-{penalidad} XP)")
-        log.add_message("[SISTEMA] Teletransportado al Pueblo.")
+        log.add_message(f"[TÚ] Usas {self.nombre}. Teletransportado al Pueblo.")
         
         # Activar teletransporte en el juego
         personaje.game.profundidad = 0
         personaje.game.load_level()
+
+    def to_dict(self):
+        return {
+            "type": "PocionRegreso",
+            "cantidad": self.cantidad
+        }
+
+    @classmethod
+    def from_dict(cls, data):
+        p = cls()
+        p.cantidad = data["cantidad"]
+        return p

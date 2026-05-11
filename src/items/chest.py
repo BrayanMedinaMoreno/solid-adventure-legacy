@@ -27,7 +27,7 @@ class Chest(pygame.sprite.Sprite):
     def open(self):
         # Generar aleatoriamente
         if random.random() < 0.4: # 40% de probabilidad de ser poción
-            tipo_p = random.choices(["pequeña", "media", "grande"], weights=[60, 30, 10])[0]
+            tipo_p = random.choices(["pequeña", "media", "grande"], weights=[80, 15, 5])[0]
             item = Pocion(tipo_p)
         else:
             clases = ["guerrero", "tirador"]
