@@ -61,12 +61,13 @@ class Panel:
         arma_actual = logic.arma if hasattr(logic, 'arma') else logic.espada
         stats = [
             (f" ATK: {logic.fuerza} (+{arma_actual.daño})", (255, 150, 50)),
-            (f" DEF: {logic.defensa}", (100, 150, 255))
+            (f" DEF: {logic.defensa}", (100, 150, 255)),
+            (f" MAG: {logic.defensa_magica}", (180, 100, 255))
         ]
         for text, color in stats:
             pygame.draw.rect(surface, color, (start_x, y + 5, 8, 8))
             self.draw_text(surface, text, start_x + 15, y, self.font, WHITE)
-            y += 25
+            y += 22
 
         # Dinero (Sección visual)
         y += 20
@@ -99,9 +100,15 @@ class Panel:
         self.draw_text(surface, "Arma:", start_x, y, self.font, LIGHT_GREY)
         self.draw_text(surface, arma_actual.nombre if arma_actual else "Ninguna", start_x + 60, y, self.font, YELLOW)
         y += 20
-        self.draw_text(surface, "Armor:", start_x, y, self.font, LIGHT_GREY)
-        self.draw_text(surface, armadura_actual.nombre if armadura_actual else "Ninguna", start_x + 60, y, self.font, YELLOW)
-        y += 25
+        slots = [
+            ("Casco:", logic.casco),
+            ("Pecho:", logic.pechera),
+            ("Pies:", logic.botas)
+        ]
+        for label, item in slots:
+            self.draw_text(surface, label, start_x, y, self.font, LIGHT_GREY)
+            self.draw_text(surface, item.nombre if item else "Vacio", start_x + 60, y, self.font, YELLOW)
+            y += 20
 
         # Enemigo en combate
         if self.game.state == "COMBAT" and self.game.current_enemy:
@@ -116,5 +123,6 @@ class Panel:
             y += 15
             self.draw_bar(surface, start_x, y, UI_WIDTH - 50, 12, enemy.vida, enemy.max_vida, RED, "ENEMIGO")
             y += 25
-            self.draw_text(surface, f" ATK: {enemy.fuerza}  DEF: {enemy.defensa}", start_x, y, self.font, (255, 100, 100))
+            def_mag = getattr(enemy, "defensa_magica", 0)
+            self.draw_text(surface, f" ATK: {enemy.fuerza}  DEF: {enemy.defensa}  M: {def_mag}", start_x, y, self.font, (255, 100, 100))
         

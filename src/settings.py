@@ -24,3 +24,14 @@ CYAN = (0, 255, 255)
 # UI Settings
 UI_WIDTH = 300
 MAP_WIDTH = WIDTH - UI_WIDTH
+
+# Helper para PyInstaller (Rutas de recursos)
+import sys
+import os
+def resource_path(relative_path):
+    """ Obtiene la ruta absoluta del recurso, funciona para dev y para PyInstaller """
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)

@@ -6,11 +6,11 @@ from settings import *
 class Level:
     def __init__(self, profundidad=1):
         self.profundidad = profundidad
-        self.width_tiles = MAP_WIDTH // TILESIZE
-        self.height_tiles = HEIGHT // TILESIZE
+        self.width_tiles = 100 # Mapa mucho más grande
+        self.height_tiles = 100
         self.map_data = []
         self.floor_tiles = []
-        self.stairs_up = None
+        self.entrance = None
         self.stairs_down = None
         
         # Cargar Sprites
@@ -48,9 +48,9 @@ class Level:
         self.map_data = [[1 for _ in range(self.width_tiles)] for _ in range(self.height_tiles)]
         self.floor_tiles = []
         rooms = []
-        max_rooms = 6 + self.profundidad // 3 # Menos habitaciones pero más grandes
-        min_room_size = 6
-        max_room_size = 12
+        max_rooms = 15 + self.profundidad * 2
+        min_room_size = 5
+        max_room_size = 15
 
         for _ in range(max_rooms):
             # Tamaño y posición aleatoria
@@ -85,12 +85,12 @@ class Level:
                     self.floor_tiles.append((x, y))
 
         if rooms:
-            # Colocar escaleras en la primera y última habitación
-            self.stairs_up = rooms[0].center
+            # La entrada es el centro de la primera habitación
+            self.entrance = rooms[0].center
+            # Colocar escaleras de bajada en la última habitación
             self.stairs_down = rooms[-1].center
         else:
-            # Fallback por si no se generó ninguna habitación (muy improbable)
-            self.stairs_up = (self.width_tiles // 2, self.height_tiles // 2)
+            # Fallback
             self.stairs_down = (self.width_tiles // 2, self.height_tiles // 2)
 
     def carve_room(self, room):
@@ -117,10 +117,17 @@ class Level:
         for y in range(min(y1, y2), max(y1, y2) + 1):
             self.map_data[y][x] = 0
 
-    def draw(self, surface, game=None):
-        for y, row in enumerate(self.map_data):
-            for x, tile in enumerate(row):
-                rect = pygame.Rect(x * TILESIZE, y * TILESIZE, TILESIZE, TILESIZE)
+    def draw(self, surface, camera_x=0, camera_y=0, game=None):
+        # Limitar el rango de dibujo para optimizar
+        start_x = max(0, int(camera_x // TILESIZE))
+        end_x = min(self.width_tiles, int((camera_x + MAP_WIDTH) // TILESIZE) + 1)
+        start_y = max(0, int(camera_y // TILESIZE))
+        end_y = min(self.height_tiles, int((camera_y + HEIGHT) // TILESIZE) + 1)
+
+        for y in range(start_y, end_y):
+            for x in range(start_x, end_x):
+                tile = self.map_data[y][x]
+                rect = pygame.Rect(x * TILESIZE - camera_x, y * TILESIZE - camera_y, TILESIZE, TILESIZE)
                 
                 if self.profundidad == 0:
                     # Dibujar Pueblo con sprites
@@ -173,8 +180,8 @@ class Level:
             for tile_x, tile_y in self.floor_tiles:
                 local_rng = random.Random(tile_x * 100 + tile_y) 
                 for _ in range(2):
-                    px = tile_x * TILESIZE + local_rng.randint(5, TILESIZE - 5)
-                    py = tile_y * TILESIZE + local_rng.randint(5, TILESIZE - 5)
+                    px = tile_x * TILESIZE + local_rng.randint(5, TILESIZE - 5) - camera_x
+                    py = tile_y * TILESIZE + local_rng.randint(5, TILESIZE - 5) - camera_y
                     pygame.draw.circle(surface, (100, 100, 100), (px, py), 1)
 
         # Dibujar escaleras
@@ -185,14 +192,9 @@ class Level:
             is_cleared = False
             
         if self.stairs_down:
-            rect = pygame.Rect(self.stairs_down[0] * TILESIZE, self.stairs_down[1] * TILESIZE, TILESIZE, TILESIZE)
+            rect = pygame.Rect(self.stairs_down[0] * TILESIZE - camera_x, self.stairs_down[1] * TILESIZE - camera_y, TILESIZE, TILESIZE)
             color = (50, 20, 100) if is_cleared else (150, 0, 0)
             pygame.draw.rect(surface, color, rect)
             label = ">" if is_cleared else "X"
             surface.blit(font.render(label, True, WHITE), (rect.x + TILESIZE//3, rect.y + TILESIZE//4))
-            
-        if self.stairs_up:
-            rect = pygame.Rect(self.stairs_up[0] * TILESIZE, self.stairs_up[1] * TILESIZE, TILESIZE, TILESIZE)
-            pygame.draw.rect(surface, (20, 100, 50), rect)
-            surface.blit(font.render("<", True, WHITE), (rect.x + TILESIZE//3, rect.y + TILESIZE//4))
 

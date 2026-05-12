@@ -1,4 +1,5 @@
 # src/logic/personaje.py
+from settings import *
 from logic.armas import Arma
 
 TITULOS_DATA = {
@@ -186,6 +187,7 @@ class Personaje:
         self.fuerza_base = fuerza
         self.fe_base = fe
         self.defensa_base = defensa
+        self.defensa_magica_base = 0
         self.vida = vida
         self.max_vida_base = vida
         
@@ -201,7 +203,9 @@ class Personaje:
         self.banco_cobre = 0
         
         self.arma = arma
-        self.armadura = None
+        self.casco = None
+        self.pechera = None
+        self.botas = None
         self.baul = []
         
         # Sistema de Títulos
@@ -258,8 +262,20 @@ class Personaje:
     @property
     def defensa(self):
         bono = TITULOS_DATA[self.titulo_actual]["bono"].get("defensa", 0)
-        defensa_equipo = self.armadura.defensa if self.armadura else 0
-        return self.defensa_base + bono + defensa_equipo
+        def_equipo = 0
+        if self.casco: def_equipo += self.casco.defensa
+        if self.pechera: def_equipo += self.pechera.defensa
+        if self.botas: def_equipo += self.botas.defensa
+        return self.defensa_base + bono + def_equipo
+
+    @property
+    def defensa_magica(self):
+        bono = TITULOS_DATA[self.titulo_actual]["bono"].get("defensa_magica", 0)
+        def_eq = 0
+        if self.casco: def_eq += getattr(self.casco, 'defensa_magica', 0)
+        if self.pechera: def_eq += getattr(self.pechera, 'defensa_magica', 0)
+        if self.botas: def_eq += getattr(self.botas, 'defensa_magica', 0)
+        return self.defensa_magica_base + bono + def_eq
 
     @property
     def max_vida(self):
@@ -530,7 +546,7 @@ class Personaje:
         log.add_message(f"[SISTEMA] +{cantidad} XP")
         while self.xp >= self.xp_necesaria:
             self.xp -= self.xp_necesaria
-            self.subir_de_nivel(3, 2, 1, log)
+            self.subir_de_nivel(1, 0, 1, log)
 
     def añadir_monedas(self, cantidad):
         self.cobre += cantidad
@@ -581,7 +597,9 @@ class Personaje:
             "oro": self.oro,
             "platino": self.platino,
             "banco_cobre": self.banco_cobre,
-            "armadura": self.armadura.to_dict() if self.armadura else None,
+            "casco": self.casco.to_dict() if self.casco else None,
+            "pechera": self.pechera.to_dict() if self.pechera else None,
+            "botas": self.botas.to_dict() if self.botas else None,
             "arma": self.arma.to_dict() if self.arma else None,
             "baul": baul_serialized,
             "titulo_actual": self.titulo_actual,
@@ -603,14 +621,17 @@ class Personaje:
         self.oro = data["oro"]
         self.platino = data["platino"]
         self.banco_cobre = data["banco_cobre"]
+        self.defensa_magica_base = data.get("defensa_magica_base", 0)
         
         self.titulo_actual = data.get("titulo_actual", "Hoja en Blanco")
         self.titulos_desbloqueados = data.get("titulos_desbloqueados", ["Hoja en Blanco"])
         self.acciones = data.get("acciones", self.acciones)
         
         from logic.armaduras import Armadura
-        if data["armadura"]:
-            self.armadura = Armadura.from_dict(data["armadura"])
+        if data.get("casco"): self.casco = Armadura.from_dict(data["casco"])
+        if data.get("pechera"): self.pechera = Armadura.from_dict(data["pechera"])
+        if data.get("botas"): self.botas = Armadura.from_dict(data["botas"])
+        if data.get("armadura"): self.pechera = Armadura.from_dict(data["armadura"]) # Compatibilidad
         
         if data.get("arma"):
             self.arma = Arma.from_dict(data["arma"])

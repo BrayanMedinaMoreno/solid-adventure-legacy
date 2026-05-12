@@ -102,11 +102,6 @@ class Player(pygame.sprite.Sprite):
                             self.game.max_profundidad = max(self.game.max_profundidad, self.game.profundidad)
                             self.game.log.add_message(f"[SISTEMA] Bajas al Nivel {self.game.profundidad}")
                             self.game.load_level()
-                    elif self.game.level.stairs_up and (self.x, self.y) == self.game.level.stairs_up:
-                        self.game.went_down = False
-                        self.game.profundidad -= 1
-                        self.game.log.add_message("[SISTEMA] Subes por las escaleras.")
-                        self.game.load_level()
 
     def add_to_inventory(self, item):
         # Solo apilar Pociones y Pociones de Regreso

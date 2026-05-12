@@ -30,6 +30,7 @@ class Enemy(pygame.sprite.Sprite):
         self.armadura = None # Los enemigos no suelen usar armaduras equipables
         self.fuerza = 5
         self.defensa = 2
+        self.defensa_magica = 0
         self.name = "Goblin"
         self.xp_recompensa = 10
         self.titulo = None

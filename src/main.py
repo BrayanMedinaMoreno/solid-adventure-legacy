@@ -25,13 +25,15 @@ class Game:
         pygame.init()
         # Activar repetición de teclas: delay inicial 200ms, repite cada 150ms
         pygame.key.set_repeat(200, 150)
-        self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
+        self.screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
+        self.virtual_surface = pygame.Surface((WIDTH, HEIGHT))
         pygame.display.set_caption("Solid Adventure Legacy")
         self.clock = pygame.time.Clock()
         self.running = True
         self.floating_texts = pygame.sprite.Group()
         self.max_profundidad = 1
         self.combat_intro_timer = 0
+        self.fullscreen = False
 
     def new(self):
         self.state = "TITLE_SCREEN"
@@ -116,7 +118,7 @@ class Game:
         else:
             # Mover jugador existente
             if self.went_down:
-                start_x, start_y = self.level.stairs_up if self.level.stairs_up else self.level.floor_tiles[0]
+                start_x, start_y = self.level.entrance if self.level.entrance else self.level.floor_tiles[0]
             else:
                 start_x, start_y = self.level.stairs_down if self.level.stairs_down else self.level.floor_tiles[0]
             self.player.x = start_x
@@ -133,7 +135,8 @@ class Game:
         # Ocupar baldosas críticas
         occupied_tiles = set()
         occupied_tiles.add((self.player.x, self.player.y))
-        if self.level.stairs_up: occupied_tiles.add(self.level.stairs_up)
+        if hasattr(self.level, 'entrance') and self.level.entrance: 
+            occupied_tiles.add(self.level.entrance)
         if self.level.stairs_down: occupied_tiles.add(self.level.stairs_down)
         
         if self.profundidad > 0:
@@ -147,6 +150,21 @@ class Game:
                     enemy = SlimeBoss(self, tile[0], tile[1])
                     enemy.max_vida += self.profundidad * 10
                     enemy.vida = enemy.max_vida
+                    occupied_tiles.add(tile)
+            if self.profundidad % 5 == 0:
+                # NIVEL DE JEFE
+                self.log.add_message(f"[ALERTA] ¡HAS LLEGADO AL REINO DEL REY SLIME!")
+                available_tiles = [t for t in self.level.floor_tiles if t not in occupied_tiles]
+                if available_tiles:
+                    tile = random.choice(available_tiles)
+                    boss = SlimeBoss(self, tile[0], tile[1])
+                    # Escalar stats del boss según profundidad
+                    multiplicador = self.profundidad // 5
+                    boss.max_vida += multiplicador * 500
+                    boss.vida = boss.max_vida
+                    boss.fuerza += multiplicador * 20
+                    boss.defensa += multiplicador * 10
+                    boss.xp_recompensa += multiplicador * 1000
                     occupied_tiles.add(tile)
             else:
                 for _ in range(num_enemies):
@@ -364,17 +382,30 @@ class Game:
             self.current_enemy = None
             self.state = "PLAYING"
             
-        elif isinstance(item, (Arma, Armadura)):
-            # Cualquier jugador puede equipar cualquier arma/armadura ahora
-            if isinstance(item, Arma):
-                if hasattr(self.player.logic, 'arma'):
-                    self.player.logic.arma = item
-                else:
-                    self.player.logic.espada = item
-            else: # Armadura
-                self.player.logic.armadura = item
-                
+        elif isinstance(item, Arma):
+            if hasattr(self.player.logic, 'arma'):
+                self.player.logic.arma = item
+            else:
+                self.player.logic.espada = item
             self.log.add_message(f"[TÚ] Equipas {item.nombre}.")
+            if self.current_enemy:
+                self.state = "COMBAT"
+                self.resolve_enemy_turn()
+            else:
+                self.state = "PLAYING"
+
+        elif isinstance(item, Armadura):
+            # Determinar slot por nombre o tipo si estuviera implementado
+            nombre = item.nombre.lower()
+            slot = "pechera" # Default
+            if "casco" in nombre or "corona" in nombre or "yelmo" in nombre:
+                slot = "casco"
+            elif "botas" in nombre or "pies" in nombre or "calzado" in nombre:
+                slot = "botas"
+            
+            setattr(self.player.logic, slot, item)
+            self.log.add_message(f"[TÚ] Equipas {item.nombre} en {slot.upper()}.")
+                
             if self.current_enemy:
                 self.state = "COMBAT"
                 self.resolve_enemy_turn()
@@ -408,86 +439,133 @@ class Game:
             self.all_sprites.update()
 
 
-    def draw_grid(self):
-        # Dibujar líneas del grid para la zona del mapa
-        for x in range(0, MAP_WIDTH, TILESIZE):
-            pygame.draw.line(self.screen, DARK_GREY, (x, 0), (x, HEIGHT))
-        for y in range(0, HEIGHT, TILESIZE):
-            pygame.draw.line(self.screen, DARK_GREY, (0, y), (MAP_WIDTH, y))
+    def draw_grid(self, cam_x=0, cam_y=0):
+        # Dibujar líneas del grid compensando la cámara
+        offset_x = cam_x % TILESIZE
+        offset_y = cam_y % TILESIZE
+        
+        for x in range(0, MAP_WIDTH + TILESIZE, TILESIZE):
+            pygame.draw.line(self.virtual_surface, DARK_GREY, (x - offset_x, 0), (x - offset_x, HEIGHT))
+        for y in range(0, HEIGHT + TILESIZE, TILESIZE):
+            pygame.draw.line(self.virtual_surface, DARK_GREY, (0, y - offset_y), (MAP_WIDTH, y - offset_y))
 
     def draw(self):
-        # Dibujar gráficos
-        self.screen.fill(BLACK)
+        # Dibujar todo en la superficie virtual primero
+        self.virtual_surface.fill(BLACK)
         
         if self.state == "TITLE_SCREEN":
             self.draw_title_screen()
-            pygame.display.flip()
+            self.flip_to_screen()
             return
-
+            
         if self.state == "NAME_INPUT":
             self.draw_name_input_screen()
-            pygame.display.flip()
+            self.flip_to_screen()
             return
 
         if self.state == "LOAD_SELECTION":
             self.draw_load_selection()
-            pygame.display.flip()
+            self.flip_to_screen()
             return
 
         if self.state == "HELP_SCREEN":
             self.draw_help_screen()
-            pygame.display.flip()
+            self.flip_to_screen()
             return
             
-        self.level.draw(self.screen, self)
-        self.all_sprites.draw(self.screen)
-        self.floating_texts.draw(self.screen)
-        for enemy in self.enemies:
-            enemy.draw_hp_bar(self.screen)
+        # Calcular cámara para seguir al jugador
+        player_cx = self.player.x * TILESIZE + TILESIZE // 2
+        player_cy = self.player.y * TILESIZE + TILESIZE // 2
         
-        self.draw_grid()
+        # Centrar en el área del mapa (MAP_WIDTH x HEIGHT)
+        cam_x = player_cx - MAP_WIDTH // 2
+        cam_y = player_cy - HEIGHT // 2
+        
+        # Limitar cámara a los bordes del mapa
+        cam_x = max(0, min(cam_x, self.level.width_tiles * TILESIZE - MAP_WIDTH))
+        cam_y = max(0, min(cam_y, self.level.height_tiles * TILESIZE - HEIGHT))
+
+        self.level.draw(self.virtual_surface, cam_x, cam_y, self)
+        
+        # Dibujar todos los sprites con offset de cámara
+        for sprite in self.all_sprites:
+            # Solo dibujar si está cerca de la pantalla para optimizar un poco
+            screen_rect = pygame.Rect(cam_x - TILESIZE, cam_y - TILESIZE, MAP_WIDTH + TILESIZE*2, HEIGHT + TILESIZE*2)
+            if sprite.rect.colliderect(screen_rect):
+                offset_pos = (sprite.rect.x - cam_x, sprite.rect.y - cam_y)
+                self.virtual_surface.blit(sprite.image, offset_pos)
+
+        self.floating_texts.draw(self.virtual_surface) # Estos pueden ser relativos a pantalla o mapa, asumo mapa
+        # Re-ajustar floating texts si es necesario (asumo que se quedan donde nacieron en el mapa)
+        
+        for enemy in self.enemies:
+            if enemy.rect.colliderect(screen_rect):
+                # HP Bar con offset
+                bar_width = TILESIZE - 8
+                bar_height = 6
+                fill = (enemy.vida / enemy.max_vida) * bar_width
+                outline_rect = pygame.Rect(enemy.rect.x - cam_x + 4, enemy.rect.y - cam_y - 10, bar_width, bar_height)
+                fill_rect = pygame.Rect(enemy.rect.x - cam_x + 4, enemy.rect.y - cam_y - 10, fill, bar_height)
+                pygame.draw.rect(self.virtual_surface, RED, fill_rect)
+                pygame.draw.rect(self.virtual_surface, WHITE, outline_rect, 1)
+        
+        # El grid también debe seguir la cámara si queremos que se vea bien
+        self.draw_grid(cam_x, cam_y)
 
         # Separador UI
-        pygame.draw.rect(self.screen, DARK_GREY, (MAP_WIDTH, 0, UI_WIDTH, HEIGHT))
-        pygame.draw.line(self.screen, WHITE, (MAP_WIDTH, 0), (MAP_WIDTH, HEIGHT), 2)
-
-        self.panel.draw(self.screen)
-        # self.log.draw(self.screen) # Log eliminado de la UI
-
-        # Overlay oscuro si hay un menú abierto
-        if self.state in ["INVENTORY", "SHOP", "BANK", "SELL", "BANK_STORE", "BANK_RETRIEVE", "CONFIRM_EXIT"]:
-            overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-            overlay.fill((0, 0, 0, 180))
-            self.screen.blit(overlay, (0, 0))
-
-        if self.state == "CONFIRM_EXIT":
-            self.draw_confirm_exit()
-        elif self.state == "LEVEL_SELECTION":
-            self.draw_level_selection()
-        elif self.state == "COMBAT":
+        pygame.draw.line(self.virtual_surface, WHITE, (MAP_WIDTH, 0), (MAP_WIDTH, HEIGHT), 2)
+        
+        # UI
+        self.panel.draw(self.virtual_surface)
+        self.log.draw(self.virtual_surface)
+        
+        if self.state == "COMBAT":
             self.draw_combat_menu()
+            if self.combat_intro_timer > 0:
+                self.draw_combat_alert()
         elif self.state == "INVENTORY":
             self.draw_inventory_menu()
         elif self.state == "SHOP":
             self.draw_shop_menu()
-        elif self.state == "BANK":
-            self.draw_bank_menu()
         elif self.state == "SELL":
             self.draw_sell_menu()
+        elif self.state == "BANK":
+            self.draw_bank_menu()
         elif self.state == "BANK_STORE":
-            self.draw_vault_menu(self.player.inventory, "GUARDAR EN BAUL")
+            self.draw_bank_store_menu()
         elif self.state == "BANK_RETRIEVE":
-            self.draw_vault_menu(self.player.logic.baul, "RETIRAR DE BAUL")
+            self.draw_bank_retrieve_menu()
+        elif self.state == "CONFIRM_EXIT":
+            self.draw_confirm_exit()
         elif self.state == "SAVE_SELECTION":
             self.draw_save_selection()
         elif self.state == "TITLE_MENU":
             self.draw_title_menu()
-        elif self.state == "HELP_SCREEN":
-            self.draw_help_screen()
+        elif self.state == "LEVEL_SELECTION":
+            self.draw_level_selection()
+        elif self.state == "DIALOG":
+            self.draw_dialog_box()
 
-        if self.combat_intro_timer > 0:
-            self.draw_combat_alert()
+        self.flip_to_screen()
 
+    def flip_to_screen(self):
+        # Escalar la superficie virtual a la ventana real manteniendo el aspecto
+        window_w, window_h = self.screen.get_size()
+        scale_w = window_w / WIDTH
+        scale_h = window_h / HEIGHT
+        scale = min(scale_w, scale_h)
+        
+        new_w = int(WIDTH * scale)
+        new_h = int(HEIGHT * scale)
+        
+        scaled_surf = pygame.transform.scale(self.virtual_surface, (new_w, new_h))
+        
+        # Centrar en la pantalla (barras negras si el aspect ratio es distinto)
+        pos_x = (window_w - new_w) // 2
+        pos_y = (window_h - new_h) // 2
+        
+        self.screen.fill(BLACK)
+        self.screen.blit(scaled_surf, (pos_x, pos_y))
         pygame.display.flip()
 
     def draw_description_box(self, text):
@@ -495,16 +573,16 @@ class Game:
         w = 450
         panel_rect = pygame.Rect(MAP_WIDTH // 2 - w // 2, HEIGHT - 130, w, 110)
         # Sombra
-        pygame.draw.rect(self.screen, (5, 5, 5), (panel_rect.x + 5, panel_rect.y + 5, panel_rect.width, panel_rect.height))
+        pygame.draw.rect(self.virtual_surface, (5, 5, 5), (panel_rect.x + 5, panel_rect.y + 5, panel_rect.width, panel_rect.height))
         # Fondo con degradado simulado (bordes más claros)
-        pygame.draw.rect(self.screen, (25, 25, 40), panel_rect)
-        pygame.draw.rect(self.screen, (60, 60, 80), panel_rect, 1) # Borde sutil
-        pygame.draw.rect(self.screen, YELLOW, (panel_rect.x, panel_rect.y, panel_rect.width, 4)) # Línea superior decorativa
+        pygame.draw.rect(self.virtual_surface, (25, 25, 40), panel_rect)
+        pygame.draw.rect(self.virtual_surface, (60, 60, 80), panel_rect, 1) # Borde sutil
+        pygame.draw.rect(self.virtual_surface, YELLOW, (panel_rect.x, panel_rect.y, panel_rect.width, 4)) # Línea superior decorativa
         
         font = pygame.font.SysFont('Consolas', 16)
         title_font = pygame.font.SysFont('Consolas', 16, bold=True)
         
-        self.screen.blit(title_font.render("DETALLES DEL OBJETO:", True, YELLOW), (panel_rect.x + 15, panel_rect.y + 12))
+        self.virtual_surface.blit(title_font.render("DETALLES DEL OBJETO:", True, YELLOW), (panel_rect.x + 15, panel_rect.y + 12))
         
         # Wrap text
         words = text.split(' ')
@@ -519,20 +597,20 @@ class Game:
         lines.append(current_line)
         
         for i, line in enumerate(lines[:3]):
-            self.screen.blit(font.render(line, True, LIGHT_GREY), (panel_rect.x + 15, panel_rect.y + 40 + i * 20))
+            self.virtual_surface.blit(font.render(line, True, LIGHT_GREY), (panel_rect.x + 15, panel_rect.y + 40 + i * 20))
 
     def draw_title_screen(self):
         title_font = pygame.font.SysFont('Consolas', 50, bold=True)
         font = pygame.font.SysFont('Consolas', 24)
         
         # Fondo oscuro con algo de estilo
-        self.screen.fill((10, 10, 20))
+        self.virtual_surface.fill((10, 10, 20))
         
         # Título
         title_text = "SOLID ADVENTURE LEGACY"
         shadow = title_font.render(title_text, True, (40, 40, 60))
-        self.screen.blit(shadow, (WIDTH//2 - 295, HEIGHT//3 - 45))
-        self.screen.blit(title_font.render(title_text, True, CYAN), (WIDTH//2 - 300, HEIGHT//3 - 50))
+        self.virtual_surface.blit(shadow, (WIDTH//2 - 295, HEIGHT//3 - 45))
+        self.virtual_surface.blit(title_font.render(title_text, True, CYAN), (WIDTH//2 - 300, HEIGHT//3 - 50))
         
         options = ["NUEVA PARTIDA", "CONTINUAR", "AYUDA", "SALIR"]
         self.save_files = SaveManager.get_save_files()
@@ -547,7 +625,7 @@ class Game:
                 text = option
                 
             prefix = "> " if i == self.menu_index else "  "
-            self.screen.blit(font.render(prefix + text, True, color), (WIDTH//2 - 100, HEIGHT//2 + i * 50))
+            self.virtual_surface.blit(font.render(prefix + text, True, color), (WIDTH//2 - 100, HEIGHT//2 + i * 50))
 
     def get_combat_options(self):
         options = ["Ataque Básico"]
@@ -565,8 +643,8 @@ class Game:
 
     def draw_combat_menu(self):
         menu_rect = pygame.Rect(MAP_WIDTH // 2 - 120, HEIGHT // 2 + 80, 240, 180)
-        pygame.draw.rect(self.screen, (20, 20, 20), menu_rect)
-        pygame.draw.rect(self.screen, WHITE, menu_rect, 2)
+        pygame.draw.rect(self.virtual_surface, (20, 20, 20), menu_rect)
+        pygame.draw.rect(self.virtual_surface, WHITE, menu_rect, 2)
         
         font = pygame.font.SysFont('Consolas', 20)
         options = self.get_combat_options()
@@ -575,30 +653,53 @@ class Game:
             color = CYAN if i == self.menu_index else WHITE
             prefix = "> " if i == self.menu_index else "  "
             text_surface = font.render(prefix + option, True, color)
-            self.screen.blit(text_surface, (menu_rect.x + 20, menu_rect.y + 20 + i * 35))
+            self.virtual_surface.blit(text_surface, (menu_rect.x + 20, menu_rect.y + 20 + i * 35))
 
     def draw_inventory_menu(self):
         inv = self.player.inventory
-        w = 450
-        h = 500 # Altura fija para mayor estabilidad con scroll
+        w, h = 600, 500
         menu_rect = pygame.Rect(MAP_WIDTH // 2 - w // 2, HEIGHT // 2 - h // 2, w, h)
-        pygame.draw.rect(self.screen, (20, 20, 30), menu_rect)
-        pygame.draw.rect(self.screen, CYAN, menu_rect, 2)
+        
+        # Fondo y bordes
+        pygame.draw.rect(self.virtual_surface, (15, 15, 25), menu_rect)
+        pygame.draw.rect(self.virtual_surface, CYAN, menu_rect, 2)
+        
+        # Cabecera
+        pygame.draw.rect(self.virtual_surface, (30, 30, 50), (menu_rect.x, menu_rect.y, menu_rect.width, 40))
+        title_font = pygame.font.SysFont('Consolas', 22, bold=True)
+        self.virtual_surface.blit(title_font.render(" MOCHILA DE AVENTURERO ", True, YELLOW), (menu_rect.x + 10, menu_rect.y + 8))
+        
+        # Panel Izquierdo: Lista de Objetos
+        list_rect = pygame.Rect(menu_rect.x + 10, menu_rect.y + 50, 350, h - 70)
+        pygame.draw.rect(self.virtual_surface, (10, 10, 15), list_rect)
+        pygame.draw.rect(self.virtual_surface, (50, 50, 70), list_rect, 1)
+        
+        # Panel Derecho: Estado de Equipo
+        eq_rect = pygame.Rect(menu_rect.x + 370, menu_rect.y + 50, 220, h - 70)
+        pygame.draw.rect(self.virtual_surface, (20, 20, 35), eq_rect)
+        pygame.draw.rect(self.virtual_surface, CYAN, eq_rect, 1)
         
         font = pygame.font.SysFont('Consolas', 18)
-        title_font = pygame.font.SysFont('Consolas', 22, bold=True)
-        self.screen.blit(title_font.render("INVENTARIO [Enter para usar]", True, YELLOW), (menu_rect.x + 10, menu_rect.y + 10))
+        small_font = pygame.font.SysFont('Consolas', 14)
         
-        if len(inv) == 0:
-            self.screen.blit(font.render("Vacío", True, WHITE), (menu_rect.x + 20, menu_rect.y + 50))
-            # Opción Salir si está vacío
-            color = CYAN if self.menu_index == 0 else WHITE
-            self.screen.blit(font.render("> VOLVER / SALIR", True, color), (menu_rect.x + 20, menu_rect.y + 80))
-            self.draw_description_box("Cerrar el inventario.")
-            return
+        # Dibujar Equipo Actual en el panel derecho
+        self.virtual_surface.blit(font.render("EQUIPADO:", True, CYAN), (eq_rect.x + 10, eq_rect.y + 10))
+        y_eq = eq_rect.y + 40
+        slots = [
+            ("ARMA", self.player.logic.arma),
+            ("CABEZA", self.player.logic.casco),
+            ("PECHO", self.player.logic.pechera),
+            ("PIES", self.player.logic.botas)
+        ]
+        for label, item in slots:
+            self.virtual_surface.blit(small_font.render(label, True, LIGHT_GREY), (eq_rect.x + 10, y_eq))
+            nombre = item.nombre if item else "---"
+            color = YELLOW if item else (100, 100, 100)
+            self.virtual_surface.blit(font.render(nombre, True, color), (eq_rect.x + 10, y_eq + 15))
+            y_eq += 45
 
-        # Lógica de Scroll
-        max_visible = (h - 100) // 30
+        # Lista de inventario con Scroll
+        max_visible = (list_rect.height - 40) // 30
         if not hasattr(self, 'inv_scroll'): self.inv_scroll = 0
         
         # Ajustar scroll según menu_index
@@ -614,10 +715,9 @@ class Game:
             logic = self.player.logic
             is_equipped = False
             if isinstance(item, Arma):
-                arma_actual = logic.arma if hasattr(logic, 'arma') else logic.espada
-                if item == arma_actual: is_equipped = True
+                if item == logic.arma: is_equipped = True
             elif isinstance(item, Armadura):
-                if item == logic.armadura: is_equipped = True
+                if item in [logic.casco, logic.pechera, logic.botas]: is_equipped = True
 
             color = CYAN if i == self.menu_index else (GREEN if is_equipped else WHITE)
             prefix = "> " if i == self.menu_index else "  "
@@ -626,7 +726,7 @@ class Game:
             
             draw_y = menu_rect.y + 50 + (i - self.inv_scroll) * 30
             text_surface = font.render(f"{prefix}{item.nombre}{cant_tag}{eq_tag}", True, color)
-            self.screen.blit(text_surface, (menu_rect.x + 20, draw_y))
+            self.virtual_surface.blit(text_surface, (menu_rect.x + 20, draw_y))
 
         # Opción Salir (siempre al final de la lista)
         exit_idx = len(inv)
@@ -634,7 +734,7 @@ class Game:
             color = CYAN if exit_idx == self.menu_index else WHITE
             prefix = "> " if exit_idx == self.menu_index else "  "
             draw_y = menu_rect.y + 50 + (exit_idx - self.inv_scroll) * 30
-            self.screen.blit(font.render(prefix + "VOLVER / SALIR", True, color), (menu_rect.x + 20, draw_y))
+            self.virtual_surface.blit(font.render(prefix + "VOLVER / SALIR", True, color), (menu_rect.x + 20, draw_y))
 
         # Mostrar descripción del seleccionado
         if self.menu_index < len(inv):
@@ -646,10 +746,10 @@ class Game:
     def draw_shop_menu(self):
         w = 450
         menu_rect = pygame.Rect(MAP_WIDTH // 2 - w // 2, HEIGHT // 2 - 110, w, 220)
-        pygame.draw.rect(self.screen, (30, 20, 20), menu_rect)
-        pygame.draw.rect(self.screen, YELLOW, menu_rect, 2)
+        pygame.draw.rect(self.virtual_surface, (30, 20, 20), menu_rect)
+        pygame.draw.rect(self.virtual_surface, YELLOW, menu_rect, 2)
         font = pygame.font.SysFont('Consolas', 18)
-        self.screen.blit(font.render("TIENDA DEL MERCADER", True, YELLOW), (menu_rect.x + 20, menu_rect.y + 10))
+        self.virtual_surface.blit(font.render("TIENDA DEL MERCADER", True, YELLOW), (menu_rect.x + 20, menu_rect.y + 10))
         options = ["Pocion Media (100 Cobre)", "Arma Aleatoria (500 Cobre)", "Pocion Regreso (10 Cobre)", "Vender Objeto", "Salir"]
         descriptions = [
             "Restaura el 50% de tu salud máxima.",
@@ -661,23 +761,23 @@ class Game:
         for i, option in enumerate(options):
             color = CYAN if i == self.menu_index else WHITE
             prefix = "> " if i == self.menu_index else "  "
-            self.screen.blit(font.render(prefix + option, True, color), (menu_rect.x + 20, menu_rect.y + 40 + i * 32))
+            self.virtual_surface.blit(font.render(prefix + option, True, color), (menu_rect.x + 20, menu_rect.y + 40 + i * 32))
         
         self.draw_description_box(descriptions[self.menu_index])
 
     def draw_sell_menu(self):
         self.draw_inventory_menu()
         title_font = pygame.font.SysFont('Consolas', 22, bold=True)
-        self.screen.blit(title_font.render("VENDER (Enter para 1/2 valor)", True, RED), (MAP_WIDTH // 2 - 130, 60))
+        self.virtual_surface.blit(title_font.render("VENDER (Enter para 1/2 valor)", True, RED), (MAP_WIDTH // 2 - 130, 60))
 
     def draw_bank_menu(self):
         w = 450
         menu_rect = pygame.Rect(MAP_WIDTH // 2 - w // 2, HEIGHT // 2 - 110, w, 220)
-        pygame.draw.rect(self.screen, (20, 30, 30), menu_rect)
-        pygame.draw.rect(self.screen, LIGHT_GREY, menu_rect, 2)
+        pygame.draw.rect(self.virtual_surface, (20, 30, 30), menu_rect)
+        pygame.draw.rect(self.virtual_surface, LIGHT_GREY, menu_rect, 2)
         font = pygame.font.SysFont('Consolas', 18)
         banco = self.player.logic.banco_cobre
-        self.screen.blit(font.render(f"BANCO (Ahorros: {banco} Cob)", True, CYAN), (menu_rect.x + 20, menu_rect.y + 10))
+        self.virtual_surface.blit(font.render(f"BANCO (Ahorros: {banco} Cob)", True, CYAN), (menu_rect.x + 20, menu_rect.y + 10))
         options = ["Depositar todo", "Retirar todo", "Guardar Objeto", "Retirar Objeto", "Salir"]
         descriptions = [
             "Guarda todo tu dinero actual en la caja fuerte.",
@@ -689,7 +789,7 @@ class Game:
         for i, option in enumerate(options):
             color = CYAN if i == self.menu_index else WHITE
             prefix = "> " if i == self.menu_index else "  "
-            self.screen.blit(font.render(prefix + option, True, color), (menu_rect.x + 20, menu_rect.y + 50 + i * 32))
+            self.virtual_surface.blit(font.render(prefix + option, True, color), (menu_rect.x + 20, menu_rect.y + 50 + i * 32))
             
         self.draw_description_box(descriptions[self.menu_index])
 
@@ -697,10 +797,10 @@ class Game:
         w = 450
         h = 500
         menu_rect = pygame.Rect(MAP_WIDTH // 2 - w // 2, HEIGHT // 2 - h // 2, w, h)
-        pygame.draw.rect(self.screen, (10, 10, 20), menu_rect)
-        pygame.draw.rect(self.screen, CYAN, menu_rect, 2)
+        pygame.draw.rect(self.virtual_surface, (10, 10, 20), menu_rect)
+        pygame.draw.rect(self.virtual_surface, CYAN, menu_rect, 2)
         font = pygame.font.SysFont('Consolas', 18)
-        self.screen.blit(font.render(title, True, YELLOW), (menu_rect.x + 10, menu_rect.y + 10))
+        self.virtual_surface.blit(font.render(title, True, YELLOW), (menu_rect.x + 10, menu_rect.y + 10))
 
         # Lógica de Scroll
         max_visible = (h - 100) // 30
@@ -717,7 +817,7 @@ class Game:
             prefix = "> " if i == self.menu_index else "  "
             cant_tag = f" x{item.cantidad}" if hasattr(item, 'cantidad') and item.cantidad > 1 else ""
             draw_y = menu_rect.y + 40 + (i - self.vault_scroll) * 30
-            self.screen.blit(font.render(prefix + item.nombre + cant_tag, True, color), (menu_rect.x + 20, draw_y))
+            self.virtual_surface.blit(font.render(prefix + item.nombre + cant_tag, True, color), (menu_rect.x + 20, draw_y))
             
         # Opción Salir
         exit_idx = len(items)
@@ -725,7 +825,7 @@ class Game:
             color = CYAN if exit_idx == self.menu_index else WHITE
             prefix = "> " if exit_idx == self.menu_index else "  "
             draw_y = menu_rect.y + 40 + (exit_idx - self.vault_scroll) * 30
-            self.screen.blit(font.render(prefix + "VOLVER / SALIR", True, color), (menu_rect.x + 20, draw_y))
+            self.virtual_surface.blit(font.render(prefix + "VOLVER / SALIR", True, color), (menu_rect.x + 20, draw_y))
         
         if self.menu_index < len(items):
             item = items[self.menu_index]
@@ -736,19 +836,19 @@ class Game:
     def draw_confirm_exit(self):
         w, h = 400, 200
         rect = pygame.Rect(WIDTH // 2 - w // 2, HEIGHT // 2 - h // 2, w, h)
-        pygame.draw.rect(self.screen, (30, 10, 10), rect)
-        pygame.draw.rect(self.screen, RED, rect, 3)
+        pygame.draw.rect(self.virtual_surface, (30, 10, 10), rect)
+        pygame.draw.rect(self.virtual_surface, RED, rect, 3)
         
         title_font = pygame.font.SysFont('Consolas', 24, bold=True)
         font = pygame.font.SysFont('Consolas', 20)
         
-        self.screen.blit(title_font.render("¿SALIR DEL JUEGO?", True, WHITE), (rect.x + 80, rect.y + 40))
+        self.virtual_surface.blit(title_font.render("¿SALIR DEL JUEGO?", True, WHITE), (rect.x + 80, rect.y + 40))
         
         color_y = YELLOW if self.menu_index == 0 else WHITE
         color_n = YELLOW if self.menu_index == 1 else WHITE
         
-        self.screen.blit(font.render("> SÍ (Cerrar)", True, color_y), (rect.x + 100, rect.y + 100))
-        self.screen.blit(font.render("> NO (Seguir)", True, color_n), (rect.x + 100, rect.y + 140))
+        self.virtual_surface.blit(font.render("> SÍ (Cerrar)", True, color_y), (rect.x + 100, rect.y + 100))
+        self.virtual_surface.blit(font.render("> NO (Seguir)", True, color_n), (rect.x + 100, rect.y + 140))
         
         # Mensaje de guardado
         msg_font = pygame.font.SysFont('Consolas', 16)
@@ -758,18 +858,18 @@ class Game:
         else:
             msg = "¡CUIDADO! Perderás el progreso de este piso."
             color = RED
-        self.screen.blit(msg_font.render(msg, True, color), (rect.x + 30, rect.y + 175))
+        self.virtual_surface.blit(msg_font.render(msg, True, color), (rect.x + 30, rect.y + 175))
 
     def draw_level_selection(self):
         w, h = 500, 250
         rect = pygame.Rect(WIDTH // 2 - w // 2, HEIGHT // 2 - h // 2, w, h)
-        pygame.draw.rect(self.screen, (10, 20, 30), rect)
-        pygame.draw.rect(self.screen, CYAN, rect, 2)
+        pygame.draw.rect(self.virtual_surface, (10, 20, 30), rect)
+        pygame.draw.rect(self.virtual_surface, CYAN, rect, 2)
         
         title_font = pygame.font.SysFont('Consolas', 24, bold=True)
         font = pygame.font.SysFont('Consolas', 20)
         
-        self.screen.blit(title_font.render("¿A DÓNDE QUIERES IR?", True, YELLOW), (rect.x + 100, rect.y + 30))
+        self.virtual_surface.blit(title_font.render("¿A DÓNDE QUIERES IR?", True, YELLOW), (rect.x + 100, rect.y + 30))
         
         options = [
             f"Entrar al Piso 1",
@@ -780,41 +880,41 @@ class Game:
         for i, option in enumerate(options):
             color = CYAN if i == self.menu_index else WHITE
             prefix = "> " if i == self.menu_index else "  "
-            self.screen.blit(font.render(prefix + option, True, color), (rect.x + 50, rect.y + 80 + i * 40))
+            self.virtual_surface.blit(font.render(prefix + option, True, color), (rect.x + 50, rect.y + 80 + i * 40))
 
     def draw_name_input_screen(self):
-        self.screen.fill((10, 10, 20))
+        self.virtual_surface.fill((10, 10, 20))
         title_font = pygame.font.SysFont('Consolas', 40, bold=True)
         font = pygame.font.SysFont('Consolas', 30)
         
-        self.screen.blit(title_font.render("NOMBRE DE TU HÉROE", True, CYAN), (WIDTH//2 - 200, HEIGHT//2 - 100))
+        self.virtual_surface.blit(title_font.render("NOMBRE DE TU HÉROE", True, CYAN), (WIDTH//2 - 200, HEIGHT//2 - 100))
         
         # Caja de texto
         box_rect = pygame.Rect(WIDTH//2 - 200, HEIGHT//2, 400, 50)
-        pygame.draw.rect(self.screen, (30, 30, 40), box_rect)
-        pygame.draw.rect(self.screen, YELLOW, box_rect, 2)
+        pygame.draw.rect(self.virtual_surface, (30, 30, 40), box_rect)
+        pygame.draw.rect(self.virtual_surface, YELLOW, box_rect, 2)
         
         name_surface = font.render(self.character_name, True, WHITE)
-        self.screen.blit(name_surface, (box_rect.x + 10, box_rect.y + 10))
+        self.virtual_surface.blit(name_surface, (box_rect.x + 10, box_rect.y + 10))
         
         if len(self.character_name) < 15:
             # Cursor parpadeante
             if (pygame.time.get_ticks() // 500) % 2 == 0:
                 cursor_x = box_rect.x + 10 + font.size(self.character_name)[0]
-                pygame.draw.line(self.screen, WHITE, (cursor_x, box_rect.y + 10), (cursor_x, box_rect.y + 40), 2)
+                pygame.draw.line(self.virtual_surface, WHITE, (cursor_x, box_rect.y + 10), (cursor_x, box_rect.y + 40), 2)
 
-        self.screen.blit(pygame.font.SysFont('Consolas', 20).render("Pulsa ENTER para confirmar", True, LIGHT_GREY), (WIDTH//2 - 130, HEIGHT//2 + 100))
+        self.virtual_surface.blit(pygame.font.SysFont('Consolas', 20).render("Pulsa ENTER para confirmar", True, LIGHT_GREY), (WIDTH//2 - 130, HEIGHT//2 + 100))
 
     def draw_load_selection(self):
-        self.screen.fill((10, 10, 20))
+        self.virtual_surface.fill((10, 10, 20))
         title_font = pygame.font.SysFont('Consolas', 40, bold=True)
         font = pygame.font.SysFont('Consolas', 24)
         
-        self.screen.blit(title_font.render("CARGAR PARTIDA", True, CYAN), (WIDTH//2 - 150, HEIGHT//2 - 200))
+        self.virtual_surface.blit(title_font.render("CARGAR PARTIDA", True, CYAN), (WIDTH//2 - 150, HEIGHT//2 - 200))
         
         if not self.save_files:
-            self.screen.blit(font.render("No hay archivos de guardado.", True, RED), (WIDTH//2 - 180, HEIGHT//2))
-            self.screen.blit(font.render("Pulsa ESC para volver", True, WHITE), (WIDTH//2 - 130, HEIGHT//2 + 50))
+            self.virtual_surface.blit(font.render("No hay archivos de guardado.", True, RED), (WIDTH//2 - 180, HEIGHT//2))
+            self.virtual_surface.blit(font.render("Pulsa ESC para volver", True, WHITE), (WIDTH//2 - 130, HEIGHT//2 + 50))
             return
 
         # Lista de archivos con scroll si es necesario
@@ -827,20 +927,20 @@ class Game:
             filename = self.save_files[i]
             color = YELLOW if i == self.menu_index else WHITE
             prefix = "> " if i == self.menu_index else "  "
-            self.screen.blit(font.render(prefix + filename, True, color), (WIDTH//2 - 200, HEIGHT//2 - 100 + (i - self.load_scroll) * 40))
+            self.virtual_surface.blit(font.render(prefix + filename, True, color), (WIDTH//2 - 200, HEIGHT//2 - 100 + (i - self.load_scroll) * 40))
 
-        self.screen.blit(font.render("ESC para Volver", True, LIGHT_GREY), (WIDTH//2 - 100, HEIGHT//2 + 180))
+        self.virtual_surface.blit(font.render("ESC para Volver", True, LIGHT_GREY), (WIDTH//2 - 100, HEIGHT//2 + 180))
 
     def draw_save_selection(self):
         w, h = 500, 400
         rect = pygame.Rect(WIDTH // 2 - w // 2, HEIGHT // 2 - h // 2, w, h)
-        pygame.draw.rect(self.screen, (10, 10, 20), rect)
-        pygame.draw.rect(self.screen, YELLOW, rect, 2)
+        pygame.draw.rect(self.virtual_surface, (10, 10, 20), rect)
+        pygame.draw.rect(self.virtual_surface, YELLOW, rect, 2)
         
         title_font = pygame.font.SysFont('Consolas', 24, bold=True)
         font = pygame.font.SysFont('Consolas', 20)
         
-        self.screen.blit(title_font.render("¿DÓNDE QUIERES GUARDAR?", True, CYAN), (rect.x + 100, rect.y + 20))
+        self.virtual_surface.blit(title_font.render("¿DÓNDE QUIERES GUARDAR?", True, CYAN), (rect.x + 100, rect.y + 20))
         
         options = ["NUEVO GUARDADO"]
         for f in self.save_files:
@@ -858,7 +958,7 @@ class Game:
             prefix = "> " if i == self.menu_index else "  "
             text = options[i]
             if len(text) > 40: text = text[:37] + "..."
-            self.screen.blit(font.render(prefix + text, True, color), (rect.x + 30, rect.y + 60 + (i - self.save_scroll) * 35))
+            self.virtual_surface.blit(font.render(prefix + text, True, color), (rect.x + 30, rect.y + 60 + (i - self.save_scroll) * 35))
 
     def draw_combat_alert(self):
         if not self.current_enemy: return
@@ -867,7 +967,7 @@ class Game:
         alpha = int(abs(pygame.time.get_ticks() % 1000 - 500) / 500 * 150) + 100
         overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
         overlay.fill((255, 0, 0, 40 if self.combat_intro_timer > 0.5 else 0))
-        self.screen.blit(overlay, (0, 0))
+        self.virtual_surface.blit(overlay, (0, 0))
         
         font_big = pygame.font.SysFont('Consolas', 80, bold=True)
         font_small = pygame.font.SysFont('Consolas', 30, bold=True)
@@ -876,28 +976,28 @@ class Game:
         
         # Sombra
         shadow = font_big.render("¡COMBATE!", True, (50, 0, 0))
-        self.screen.blit(shadow, (WIDTH//2 - shadow.get_width()//2 + 5, HEIGHT//2 - 100 + 5))
+        self.virtual_surface.blit(shadow, (WIDTH//2 - shadow.get_width()//2 + 5, HEIGHT//2 - 100 + 5))
         
         # Texto principal
         text_surf = font_big.render("¡COMBATE!", True, RED)
-        self.screen.blit(text_surf, (WIDTH//2 - text_surf.get_width()//2, HEIGHT//2 - 100))
+        self.virtual_surface.blit(text_surf, (WIDTH//2 - text_surf.get_width()//2, HEIGHT//2 - 100))
         
         # Texto secundario (VS)
         vs_surf = font_small.render(text_vs, True, WHITE)
-        self.screen.blit(vs_surf, (WIDTH//2 - vs_surf.get_width()//2, HEIGHT//2))
+        self.virtual_surface.blit(vs_surf, (WIDTH//2 - vs_surf.get_width()//2, HEIGHT//2))
         
         # Líneas decorativas
         line_w = 400 * (self.combat_intro_timer / 0.8)
-        pygame.draw.line(self.screen, RED, (WIDTH//2 - line_w//2, HEIGHT//2 - 120), (WIDTH//2 + line_w//2, HEIGHT//2 - 120), 4)
-        pygame.draw.line(self.screen, RED, (WIDTH//2 - line_w//2, HEIGHT//2 + 50), (WIDTH//2 + line_w//2, HEIGHT//2 + 50), 4)
+        pygame.draw.line(self.virtual_surface, RED, (WIDTH//2 - line_w//2, HEIGHT//2 - 120), (WIDTH//2 + line_w//2, HEIGHT//2 - 120), 4)
+        pygame.draw.line(self.virtual_surface, RED, (WIDTH//2 - line_w//2, HEIGHT//2 + 50), (WIDTH//2 + line_w//2, HEIGHT//2 + 50), 4)
 
     def draw_help_screen(self):
-        self.screen.fill((10, 10, 20))
+        self.virtual_surface.fill((10, 10, 20))
         title_font = pygame.font.SysFont('Consolas', 40, bold=True)
         sub_font = pygame.font.SysFont('Consolas', 22, bold=True)
         font = pygame.font.SysFont('Consolas', 18)
         
-        self.screen.blit(title_font.render("GUÍA DEL JUEGO", True, CYAN), (WIDTH//2 - 250, 50))
+        self.virtual_surface.blit(title_font.render("GUÍA DEL JUEGO", True, CYAN), (WIDTH//2 - 250, 50))
         
         sections = [
             ("CONTROLES BÁSICOS", [
@@ -922,24 +1022,24 @@ class Game:
         
         y = 130
         for title, lines in sections:
-            self.screen.blit(sub_font.render(title, True, YELLOW), (100, y))
+            self.virtual_surface.blit(sub_font.render(title, True, YELLOW), (100, y))
             y += 30
             for line in lines:
-                self.screen.blit(font.render(line, True, WHITE), (120, y))
+                self.virtual_surface.blit(font.render(line, True, WHITE), (120, y))
                 y += 25
             y += 20
             
-        self.screen.blit(font.render("Pulsa ESC o ENTER para volver", True, LIGHT_GREY), (WIDTH//2 - 150, HEIGHT - 80))
+        self.virtual_surface.blit(font.render("Pulsa ESC o ENTER para volver", True, LIGHT_GREY), (WIDTH//2 - 150, HEIGHT - 80))
 
     def draw_title_menu(self):
         w, h = 500, 450
         rect = pygame.Rect(MAP_WIDTH // 2 - w // 2, HEIGHT // 2 - h // 2, w, h)
-        pygame.draw.rect(self.screen, (20, 20, 35), rect)
-        pygame.draw.rect(self.screen, CYAN, rect, 2)
+        pygame.draw.rect(self.virtual_surface, (20, 20, 35), rect)
+        pygame.draw.rect(self.virtual_surface, CYAN, rect, 2)
         
         font = pygame.font.SysFont('Consolas', 18)
         title_font = pygame.font.SysFont('Consolas', 22, bold=True)
-        self.screen.blit(title_font.render("CONTRATOS DE IDENTIDAD (TÍTULOS)", True, YELLOW), (rect.x + 20, rect.y + 20))
+        self.virtual_surface.blit(title_font.render("CONTRATOS DE IDENTIDAD (TÍTULOS)", True, YELLOW), (rect.x + 20, rect.y + 20))
         
         from logic.personaje import TITULOS_DATA
         titulos = self.player.logic.titulos_desbloqueados
@@ -953,12 +1053,12 @@ class Game:
             prefix = "> " if i == self.menu_index else ("* " if is_active else ("+ " if is_passive else "  "))
             suffix = " (PASIVO)" if is_passive else ""
             
-            self.screen.blit(font.render(f"{prefix}{t_name}{suffix}", True, color), (rect.x + 30, rect.y + 70 + i * 35))
+            self.virtual_surface.blit(font.render(f"{prefix}{t_name}{suffix}", True, color), (rect.x + 30, rect.y + 70 + i * 35))
             
         # Opción Salir
         exit_idx = len(titulos)
         color = YELLOW if exit_idx == self.menu_index else WHITE
-        self.screen.blit(font.render(f"{'> ' if exit_idx == self.menu_index else '  '}VOLVER", True, color), (rect.x + 30, rect.y + 70 + exit_idx * 35))
+        self.virtual_surface.blit(font.render(f"{'> ' if exit_idx == self.menu_index else '  '}VOLVER", True, color), (rect.x + 30, rect.y + 70 + exit_idx * 35))
         
         # Descripción del seleccionado
         if self.menu_index < len(titulos):
@@ -974,6 +1074,8 @@ class Game:
             if event.type == pygame.QUIT:
                 self.quit_game()
             if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_F11:
+                    pygame.display.toggle_fullscreen()
                 if event.key == pygame.K_ESCAPE:
                     if self.state == "CONFIRM_EXIT":
                         self.state = self.prev_state
@@ -1047,6 +1149,12 @@ class Game:
                     if event.key == pygame.K_t:
                         self.state = "TITLE_MENU"
                         self.menu_index = 0
+
+                elif self.state == "DIALOG":
+                    if event.key == pygame.K_RETURN or event.key == pygame.K_SPACE:
+                        self.state = self.next_state
+                        if self.state in ["SHOP", "BANK"]:
+                            self.menu_index = 0
                 
                 elif self.state == "COMBAT":
                     options = self.get_combat_options()
