@@ -18,6 +18,7 @@ from entities.trap import Trap
 from ui.panel import Panel
 from ui.log import Log
 from ui.floating_text import FloatingText
+from ui.minimap import Minimap
 from logic.save_manager import SaveManager
 
 class Game:
@@ -125,6 +126,8 @@ class Game:
             self.player.y = start_y
             self.player.rect.x = start_x * TILESIZE
             self.player.rect.y = start_y * TILESIZE
+            self.player.exact_x = float(self.player.rect.x)
+            self.player.exact_y = float(self.player.rect.y)
             self.all_sprites.add(self.player)
 
         # Trackear piso máximo
@@ -205,6 +208,9 @@ class Game:
             self.log.add_message("[PUEBLO] Estás a salvo aquí.")
             Mercader(self, self.level.width_tiles // 2 - 2, self.level.height_tiles // 2)
             Banquero(self, self.level.width_tiles // 2 + 2, self.level.height_tiles // 2)
+
+        # Inicializar minimapa
+        self.minimap = Minimap(self)
 
     def get_chest_at(self, x, y):
         for chest in self.chests:
@@ -326,6 +332,9 @@ class Game:
         enemy_dmg = max(1, self.current_enemy.fuerza - self.player.logic.defensa)
         if self.player.logic.recibir_daño(enemy_dmg, tipo=damage_type, log=self.log):
             self.spawn_floating_text(f"-{enemy_dmg}", self.player.rect.centerx, self.player.rect.top, RED)
+            # Activar vibración de pantalla al recibir daño (Reducida para que sea más sutil)
+            if not hasattr(self, 'screen_shake'): self.screen_shake = 0
+            self.screen_shake = min(8, self.screen_shake + 2 + enemy_dmg // 5)
         
         if self.player.logic.vida <= 0:
             self.log.add_message("[SISTEMA] HAS MUERTO.")
@@ -434,6 +443,9 @@ class Game:
         if self.combat_intro_timer > 0:
             self.combat_intro_timer -= self.dt
             
+        if hasattr(self, 'screen_shake') and self.screen_shake > 0:
+            self.screen_shake = max(0, self.screen_shake - 30 * self.dt)
+            
         if self.state == "PLAYING":
             self.player.logic.update_regen(self.dt)
             self.all_sprites.update()
@@ -474,8 +486,8 @@ class Game:
             return
             
         # Calcular cámara para seguir al jugador
-        player_cx = self.player.x * TILESIZE + TILESIZE // 2
-        player_cy = self.player.y * TILESIZE + TILESIZE // 2
+        player_cx = self.player.rect.x + TILESIZE // 2
+        player_cy = self.player.rect.y + TILESIZE // 2
         
         # Centrar en el área del mapa (MAP_WIDTH x HEIGHT)
         cam_x = player_cx - MAP_WIDTH // 2
@@ -518,6 +530,8 @@ class Game:
         # UI
         self.panel.draw(self.virtual_surface)
         self.log.draw(self.virtual_surface)
+        if hasattr(self, 'minimap'):
+            self.minimap.draw(self.virtual_surface)
         
         if self.state == "COMBAT":
             self.draw_combat_menu()
@@ -563,6 +577,13 @@ class Game:
         # Centrar en la pantalla (barras negras si el aspect ratio es distinto)
         pos_x = (window_w - new_w) // 2
         pos_y = (window_h - new_h) // 2
+        
+        # Aplicar Screen Shake (temblor aleatorio)
+        if hasattr(self, 'screen_shake') and self.screen_shake > 0:
+            offset = int(self.screen_shake)
+            if offset > 0:
+                pos_x += random.randint(-offset, offset)
+                pos_y += random.randint(-offset, offset)
         
         self.screen.fill(BLACK)
         self.screen.blit(scaled_surf, (pos_x, pos_y))

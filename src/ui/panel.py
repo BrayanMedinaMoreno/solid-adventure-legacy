@@ -7,6 +7,14 @@ class Panel:
         self.game = game
         self.font = pygame.font.SysFont('Consolas', 18)
         self.title_font = pygame.font.SysFont('Consolas', 24, bold=True)
+        
+        # Cargar icono de arma si existe
+        self.weapon_icon = None
+        try:
+            img = pygame.image.load('assets/sprites/espada_oxidada.png').convert_alpha()
+            self.weapon_icon = pygame.transform.scale(img, (20, 20))
+        except FileNotFoundError:
+            pass
 
     def draw_text(self, surface, text, x, y, font, color=WHITE):
         text_surface = font.render(text, True, color)
@@ -98,7 +106,11 @@ class Panel:
         armadura_actual = logic.armadura if hasattr(logic, 'armadura') else None
         
         self.draw_text(surface, "Arma:", start_x, y, self.font, LIGHT_GREY)
-        self.draw_text(surface, arma_actual.nombre if arma_actual else "Ninguna", start_x + 60, y, self.font, YELLOW)
+        if self.weapon_icon and arma_actual:
+            surface.blit(self.weapon_icon, (start_x + 60, y - 2))
+            self.draw_text(surface, arma_actual.nombre, start_x + 85, y, self.font, YELLOW)
+        else:
+            self.draw_text(surface, arma_actual.nombre if arma_actual else "Ninguna", start_x + 60, y, self.font, YELLOW)
         y += 20
         slots = [
             ("Casco:", logic.casco),

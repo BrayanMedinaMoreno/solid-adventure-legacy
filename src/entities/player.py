@@ -25,6 +25,8 @@ class Player(pygame.sprite.Sprite):
         self.y = y
         self.rect.x = x * TILESIZE
         self.rect.y = y * TILESIZE
+        self.exact_x = float(self.rect.x)
+        self.exact_y = float(self.rect.y)
 
         # Integración con la lógica
         if logic:
@@ -75,8 +77,6 @@ class Player(pygame.sprite.Sprite):
                 else:
                     self.x = dest_x
                     self.y = dest_y
-                    self.rect.x = self.x * TILESIZE
-                    self.rect.y = self.y * TILESIZE
                     
                     # Comprobar si hay una trampa en la nueva posición
                     trap = self.game.get_trap_at(self.x, self.y)
@@ -118,3 +118,36 @@ class Player(pygame.sprite.Sprite):
         
         # Si no es apilable o no se encontró en el inventario
         self.inventory.append(item)
+
+    def update(self):
+        target_x = self.x * TILESIZE
+        target_y = self.y * TILESIZE
+        
+        # Revelar Niebla de Guerra (Radio de visión)
+        if hasattr(self.game, 'level') and self.game.level:
+            vision_radius = 5
+            for y in range(max(0, self.y - vision_radius), min(self.game.level.height_tiles, self.y + vision_radius + 1)):
+                for x in range(max(0, self.x - vision_radius), min(self.game.level.width_tiles, self.x + vision_radius + 1)):
+                    # Distancia circular
+                    if (x - self.x)**2 + (y - self.y)**2 <= vision_radius**2:
+                        if not self.game.level.explored[y][x]:
+                            self.game.level.explored[y][x] = True
+                            # Notificar al minimapa
+                            if hasattr(self.game, 'minimap') and self.game.minimap:
+                                self.game.minimap.update_fog_pixel(x, y, self.game.level.map_data[y][x])
+
+        # Velocidad de interpolación (aprox 0.1 segundos por casilla)
+        speed = 300 * self.game.dt
+        
+        if self.exact_x < target_x:
+            self.exact_x = min(target_x, self.exact_x + speed)
+        elif self.exact_x > target_x:
+            self.exact_x = max(target_x, self.exact_x - speed)
+            
+        if self.exact_y < target_y:
+            self.exact_y = min(target_y, self.exact_y + speed)
+        elif self.exact_y > target_y:
+            self.exact_y = max(target_y, self.exact_y - speed)
+            
+        self.rect.x = int(self.exact_x)
+        self.rect.y = int(self.exact_y)

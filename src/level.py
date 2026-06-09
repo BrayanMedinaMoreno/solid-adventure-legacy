@@ -24,6 +24,7 @@ class Level:
             self.sprites['wall_top'] = pygame.image.load('assets/sprites/wall_top.png').convert_alpha()
             self.sprites['wall_front'] = pygame.image.load('assets/sprites/wall_front.png').convert_alpha()
             self.sprites['floor_tile'] = pygame.image.load('assets/sprites/floor_tile.png').convert_alpha()
+            self.sprites['escaleras'] = pygame.image.load('assets/sprites/escaleras.png').convert_alpha()
             
             # Escalar
             for key in self.sprites:
@@ -32,6 +33,13 @@ class Level:
             pass
 
         self.generate_level()
+        
+        # Inicializar Niebla de Guerra
+        if self.profundidad == 0:
+            # En el pueblo todo está explorado
+            self.explored = [[True for _ in range(self.width_tiles)] for _ in range(self.height_tiles)]
+        else:
+            self.explored = [[False for _ in range(self.width_tiles)] for _ in range(self.height_tiles)]
 
     def generate_level(self):
         if self.profundidad == 0:
@@ -126,8 +134,14 @@ class Level:
 
         for y in range(start_y, end_y):
             for x in range(start_x, end_x):
-                tile = self.map_data[y][x]
                 rect = pygame.Rect(x * TILESIZE - camera_x, y * TILESIZE - camera_y, TILESIZE, TILESIZE)
+                
+                # Niebla de Guerra
+                if not self.explored[y][x]:
+                    pygame.draw.rect(surface, (0, 0, 0), rect) # Dibujar negro absoluto
+                    continue
+                
+                tile = self.map_data[y][x]
                 
                 if self.profundidad == 0:
                     # Dibujar Pueblo con sprites
@@ -193,8 +207,17 @@ class Level:
             
         if self.stairs_down:
             rect = pygame.Rect(self.stairs_down[0] * TILESIZE - camera_x, self.stairs_down[1] * TILESIZE - camera_y, TILESIZE, TILESIZE)
-            color = (50, 20, 100) if is_cleared else (150, 0, 0)
-            pygame.draw.rect(surface, color, rect)
-            label = ">" if is_cleared else "X"
-            surface.blit(font.render(label, True, WHITE), (rect.x + TILESIZE//3, rect.y + TILESIZE//4))
+            if 'escaleras' in self.sprites:
+                surface.blit(self.sprites['escaleras'], rect)
+                if not is_cleared:
+                    # Tinte rojo semitransparente y cruz
+                    s = pygame.Surface((TILESIZE, TILESIZE), pygame.SRCALPHA)
+                    s.fill((150, 0, 0, 150))
+                    surface.blit(s, rect)
+                    surface.blit(font.render("X", True, WHITE), (rect.x + TILESIZE//3, rect.y + TILESIZE//4))
+            else:
+                color = (50, 20, 100) if is_cleared else (150, 0, 0)
+                pygame.draw.rect(surface, color, rect)
+                label = ">" if is_cleared else "X"
+                surface.blit(font.render(label, True, WHITE), (rect.x + TILESIZE//3, rect.y + TILESIZE//4))
 
