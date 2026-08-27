@@ -653,10 +653,10 @@ class Game:
             self.minimap.draw(self.virtual_surface)
         
         if self.state == "COMBAT":
-            self.draw_combat_menu()
             if self.combat_intro_timer > 0:
                 self.draw_combat_alert()
             else:
+                self.draw_combat_menu()
                 self.draw_enemy_info_box()
         elif self.state == "INVENTORY":
             self.draw_inventory_menu()
@@ -1436,13 +1436,16 @@ class Game:
                             self.menu_index = 0
                 
                 elif self.state == "COMBAT":
-                    options = self.get_combat_options()
-                    if event.key == pygame.K_UP or event.key == pygame.K_w:
-                        self.menu_index = max(0, self.menu_index - 1)
-                    if event.key == pygame.K_DOWN or event.key == pygame.K_s:
-                        self.menu_index = min(len(options) - 1, self.menu_index + 1)
-                    if event.key == pygame.K_RETURN:
-                        self.resolve_combat_action()
+                    if self.combat_intro_timer > 0:
+                        pass
+                    else:
+                        options = self.get_combat_options()
+                        if event.key == pygame.K_UP or event.key == pygame.K_w:
+                            self.menu_index = max(0, self.menu_index - 1)
+                        if event.key == pygame.K_DOWN or event.key == pygame.K_s:
+                            self.menu_index = min(len(options) - 1, self.menu_index + 1)
+                        if event.key == pygame.K_RETURN:
+                            self.resolve_combat_action()
 
                 elif self.state == "INVENTORY":
                     inv = self.player.inventory
