@@ -24,6 +24,11 @@ from logic.save_manager import SaveManager
 class Game:
     def __init__(self):
         pygame.init()
+        try:
+            pygame.mixer.init()
+        except Exception as e:
+            print("No se pudo inicializar el mixer de audio:", e)
+        self.current_music = None
         # Activar repetición de teclas: delay inicial 200ms, repite cada 150ms
         pygame.key.set_repeat(200, 150)
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
@@ -99,6 +104,23 @@ class Game:
 
     def load_level(self):
         self.level = Level(self.profundidad)
+        
+        # Reproducir música según el nivel (pueblo o calabozo)
+        music_to_play = None
+        if self.profundidad == 0:
+            music_to_play = 'assets/Music/The_Road_Back_Home_Pueblo_Inicial.mp3'
+        else:
+            music_to_play = 'assets/Music/Under_the_Weight_of_Stone_Masmorra.mp3'
+            
+        if music_to_play and self.current_music != music_to_play:
+            try:
+                pygame.mixer.music.load(music_to_play)
+                pygame.mixer.music.set_volume(0.35)
+                pygame.mixer.music.play(-1)
+                self.current_music = music_to_play
+            except Exception as e:
+                print("Error cargando o reproduciendo música:", e)
+                
         # Trackear piso máximo
         self.all_sprites = pygame.sprite.Group()
         self.enemies = pygame.sprite.Group()
