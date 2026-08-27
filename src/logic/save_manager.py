@@ -39,6 +39,7 @@ class SaveManager:
 
         data = {
             "max_profundidad": game.max_profundidad,
+            "dificultad": getattr(game, "dificultad", "normal"),
             "player_logic": game.player.logic.to_dict(),
             "inventory": []
         }
@@ -55,6 +56,7 @@ class SaveManager:
             filepath = os.path.join(SAVE_DIR, filename)
             with open(filepath, "w") as f:
                 json.dump(data, f, indent=4)
+            game.current_save_file = filename
             return True
         except Exception as e:
             print(f"Error al guardar: {e}")

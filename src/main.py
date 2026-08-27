@@ -13,7 +13,7 @@ from items.chest import Chest
 from items.potion import Pocion, PocionRegreso
 from logic.armas import Arma
 from logic.armaduras import Armadura
-from entities.npc import Mercader, Banquero
+from entities.npc import Mercader, Banquero, CruzInteractiva
 from entities.trap import Trap
 from ui.panel import Panel
 from ui.log import Log
@@ -41,23 +41,28 @@ class Game:
         self.menu_index = 0
         self.clase_seleccionada = 0
 
-    def start_game(self, clase_elegida, nombre=None):
+    def start_game(self, clase_elegida, nombre=None, dificultad="normal"):
         self.clase_elegida = clase_elegida
+        self.dificultad = dificultad
         self.profundidad = 0 # Empezamos en el Pueblo
         self.went_down = True
+        self.current_save_file = None
         
         self.panel = Panel(self)
         self.log = Log()
         self.player = None
         self.log.add_message(f"¡Bienvenido al mundo, {nombre}!")
+        self.log.add_message(f"Dificultad: {'Fácil' if dificultad == 'facil' else 'Normal'}")
         self.character_name = nombre
         
         self.load_level()
 
-    def start_saved_game(self, save_data):
+    def start_saved_game(self, save_data, filename=None):
         self.max_profundidad = save_data["max_profundidad"]
+        self.dificultad = save_data.get("dificultad", "normal")
         self.profundidad = 0 # Siempre empezamos en el pueblo al cargar
         self.went_down = True
+        self.current_save_file = filename
         
         self.panel = Panel(self)
         self.log = Log()
@@ -118,7 +123,9 @@ class Game:
                 self.player = Player(self, start_x, start_y, self.clase_elegida, nombre=self.character_name)
         else:
             # Mover jugador existente
-            if self.went_down:
+            if self.profundidad == 0:
+                start_x, start_y = self.level.entrance if self.level.entrance else (self.level.width_tiles // 2, self.level.height_tiles // 2 + 2)
+            elif self.went_down:
                 start_x, start_y = self.level.entrance if self.level.entrance else self.level.floor_tiles[0]
             else:
                 start_x, start_y = self.level.stairs_down if self.level.stairs_down else self.level.floor_tiles[0]
@@ -208,6 +215,7 @@ class Game:
             self.log.add_message("[PUEBLO] Estás a salvo aquí.")
             Mercader(self, self.level.width_tiles // 2 - 2, self.level.height_tiles // 2)
             Banquero(self, self.level.width_tiles // 2 + 2, self.level.height_tiles // 2)
+            CruzInteractiva(self, self.level.width_tiles // 2, self.level.height_tiles // 2 - 3)
 
         # Inicializar minimapa
         self.minimap = Minimap(self)
@@ -257,12 +265,30 @@ class Game:
         if action == "Ataque Básico":
             self.player.logic.atacar(self.current_enemy, self.log, tipo_forzado="fisico")
             should_end_turn = True
-        elif action == "Golpe Habilidad":
+        elif action.startswith("Golpe Habilidad"):
+            if self.player.logic.cooldowns.get("habilidad", 0) > 0:
+                self.log.add_message("[SISTEMA] Habilidad en enfriamiento.")
+                self.spawn_floating_text("¡EN ENFRIAMIENTO!", self.player.rect.centerx, self.player.rect.top - 20, YELLOW)
+                return
+            self.player.logic.cooldowns["habilidad"] = 3
             self.player.logic.atacar(self.current_enemy, self.log, tipo_forzado="habilidad")
             should_end_turn = True
-        elif action == "Ataque Distancia":
+        elif action.startswith("Ataque Distancia"):
+            if self.player.logic.cooldowns.get("distancia", 0) > 0:
+                self.log.add_message("[SISTEMA] Habilidad en enfriamiento.")
+                self.spawn_floating_text("¡EN ENFRIAMIENTO!", self.player.rect.centerx, self.player.rect.top - 20, YELLOW)
+                return
+            self.player.logic.cooldowns["distancia"] = 3
             self.player.logic.atacar(self.current_enemy, self.log, tipo_forzado="distancia")
             should_end_turn = True
+        elif action.startswith("Ataque Mágico"):
+            if self.player.logic.gastar_mana(15):
+                self.player.logic.atacar(self.current_enemy, self.log, tipo_forzado="magico")
+                should_end_turn = True
+            else:
+                self.log.add_message("[SISTEMA] No tienes suficiente maná.")
+                self.spawn_floating_text("¡SIN MANÁ!", self.player.rect.centerx, self.player.rect.top - 20, BLUE)
+                return
         elif action == "Huir":
             # Aumentar probabilidad a 70% para mejor fluidez
             if random.random() < 0.7:
@@ -339,29 +365,44 @@ class Game:
         if self.player.logic.vida <= 0:
             self.log.add_message("[SISTEMA] HAS MUERTO.")
             
-            # Penalidad: Pierde todo el dinero
-            self.player.logic.cobre = 0
-            self.player.logic.plata = 0
-            self.player.logic.oro = 0
-            self.player.logic.platino = 0
-            
             # Penalidad de XP: 20% (sin bajar de nivel, ya que la lógica de nivel no resta)
             xp_perdida = int(self.player.logic.xp * 0.20)
             self.player.logic.xp -= xp_perdida
             
-            # Filtrar inventario: Solo se conserva la Pocion de Regreso
-            # Importamos PocionRegreso localmente para evitar problemas de circularidad si los hay
-            from items.potion import PocionRegreso
-            regreso_items = [item for item in self.player.inventory if isinstance(item, PocionRegreso)]
+            dificultad = getattr(self, "dificultad", "normal")
             
-            # Resetear equipo a básico
-            arma_basica = Arma("Espada de Madera", 8, "fisico")
-            self.player.inventory = [arma_basica] + regreso_items
-            self.player.logic.arma = arma_basica
-            self.player.logic.armadura = None
-            
+            if dificultad == "facil":
+                # Pierde la mitad del dinero
+                self.player.logic.cobre //= 2
+                self.player.logic.plata //= 2
+                self.player.logic.oro //= 2
+                self.player.logic.platino //= 2
+                
+                self.log.add_message(f"[SISTEMA] Perdiste {xp_perdida} XP y la mitad de tu dinero, pero conservas tus objetos.")
+            else:
+                # Dificultad Normal (Hardcore)
+                self.player.logic.cobre = 0
+                self.player.logic.plata = 0
+                self.player.logic.oro = 0
+                self.player.logic.platino = 0
+                
+                # Filtrar inventario: Solo se conserva la Pocion de Regreso
+                from items.potion import PocionRegreso
+                regreso_items = [item for item in self.player.inventory if isinstance(item, PocionRegreso)]
+                
+                # Resetear equipo a básico (incluyendo los slots nuevos)
+                arma_basica = Arma("Espada de Madera", 8, "fisico")
+                self.player.inventory = [arma_basica] + regreso_items
+                self.player.logic.arma = arma_basica
+                self.player.logic.armadura = None
+                if hasattr(self.player.logic, 'casco'): self.player.logic.casco = None
+                if hasattr(self.player.logic, 'pechera'): self.player.logic.pechera = None
+                if hasattr(self.player.logic, 'botas'): self.player.logic.botas = None
+                if hasattr(self.player.logic, 'accesorio'): self.player.logic.accesorio = None
+                
+                self.log.add_message(f"[SISTEMA] Perdiste {xp_perdida} XP, tu dinero y tu equipo. Solo conservas Pociones de Regreso.")
+
             self.player.logic.vida = self.player.logic.max_vida
-            self.log.add_message(f"[SISTEMA] Perdiste {xp_perdida} XP y tu equipo. Solo conservas tus Pociones de Regreso.")
             
             # Respawn en el pueblo
             self.profundidad = 0
@@ -420,6 +461,41 @@ class Game:
                 self.resolve_enemy_turn()
             else:
                 self.state = "PLAYING"
+                
+        else:
+            try:
+                from items.potion import PocionMana, LibroMagia
+                from logic.accesorios import Accesorio
+                if isinstance(item, PocionMana):
+                    item.usar(self.player.logic, self.log)
+                    item.cantidad -= 1
+                    if item.cantidad <= 0:
+                        self.player.inventory.remove(item)
+                    if self.current_enemy:
+                        self.state = "COMBAT"
+                        self.resolve_enemy_turn()
+                    else:
+                        self.state = "PLAYING"
+                elif isinstance(item, LibroMagia):
+                    item.usar(self.player.logic, self.log)
+                    item.cantidad -= 1
+                    if item.cantidad <= 0:
+                        self.player.inventory.remove(item)
+                    if self.current_enemy:
+                        self.state = "COMBAT"
+                        self.resolve_enemy_turn()
+                    else:
+                        self.state = "PLAYING"
+                elif isinstance(item, Accesorio):
+                    self.player.logic.accesorio = item
+                    self.log.add_message(f"[TÚ] Equipas {item.nombre}.")
+                    if self.current_enemy:
+                        self.state = "COMBAT"
+                        self.resolve_enemy_turn()
+                    else:
+                        self.state = "PLAYING"
+            except ImportError:
+                pass
 
     def run(self):
         # Bucle principal del juego
@@ -432,8 +508,7 @@ class Game:
     def quit_game(self, save_filename=None):
         if hasattr(self, 'player') and self.player:
             if self.profundidad == 0:
-                if save_filename:
-                    SaveManager.save_game(self, save_filename)
+                SaveManager.save_game(self, save_filename)
         pygame.quit()
         sys.exit()
 
@@ -474,6 +549,11 @@ class Game:
             self.draw_name_input_screen()
             self.flip_to_screen()
             return
+            
+        if self.state == "DIFFICULTY_SELECTION":
+            self.draw_difficulty_selection_screen()
+            self.flip_to_screen()
+            return
 
         if self.state == "LOAD_SELECTION":
             self.draw_load_selection()
@@ -504,6 +584,16 @@ class Game:
             # Solo dibujar si está cerca de la pantalla para optimizar un poco
             screen_rect = pygame.Rect(cam_x - TILESIZE, cam_y - TILESIZE, MAP_WIDTH + TILESIZE*2, HEIGHT + TILESIZE*2)
             if sprite.rect.colliderect(screen_rect):
+                # Comprobar niebla de guerra
+                if self.profundidad > 0 and sprite != self.player:
+                    grid_x = getattr(sprite, 'x', sprite.rect.x // TILESIZE)
+                    grid_y = getattr(sprite, 'y', sprite.rect.y // TILESIZE)
+                    if 0 <= grid_x < self.level.width_tiles and 0 <= grid_y < self.level.height_tiles:
+                        if not self.level.explored[grid_y][grid_x]:
+                            continue
+                    else:
+                        continue
+                        
                 offset_pos = (sprite.rect.x - cam_x, sprite.rect.y - cam_y)
                 self.virtual_surface.blit(sprite.image, offset_pos)
 
@@ -512,6 +602,13 @@ class Game:
         
         for enemy in self.enemies:
             if enemy.rect.colliderect(screen_rect):
+                # Comprobar niebla de guerra para la barra de vida
+                if self.profundidad > 0:
+                    grid_x = enemy.x
+                    grid_y = enemy.y
+                    if not (0 <= grid_x < self.level.width_tiles and 0 <= grid_y < self.level.height_tiles and self.level.explored[grid_y][grid_x]):
+                        continue
+                        
                 # HP Bar con offset
                 bar_width = TILESIZE - 8
                 bar_height = 6
@@ -537,6 +634,8 @@ class Game:
             self.draw_combat_menu()
             if self.combat_intro_timer > 0:
                 self.draw_combat_alert()
+            else:
+                self.draw_enemy_info_box()
         elif self.state == "INVENTORY":
             self.draw_inventory_menu()
         elif self.state == "SHOP":
@@ -559,6 +658,8 @@ class Game:
             self.draw_level_selection()
         elif self.state == "DIALOG":
             self.draw_dialog_box()
+        elif self.state == "CROSS_MENU":
+            self.draw_cross_menu()
 
         self.flip_to_screen()
 
@@ -651,13 +752,23 @@ class Game:
     def get_combat_options(self):
         options = ["Ataque Básico"]
         t_actual = self.player.logic.titulo_actual
+        cd_h = self.player.logic.cooldowns.get("habilidad", 0)
+        cd_d = self.player.logic.cooldowns.get("distancia", 0)
         
         # Solo mostrar habilidades especiales si NO es el título inicial
         if t_actual != "Hoja en Blanco":
             if "Espada" in t_actual or "Hoja" in t_actual:
-                options.append("Golpe Habilidad")
+                options.append(f"Golpe Habilidad{' (CD: ' + str(cd_h) + ')' if cd_h > 0 else ''}")
             elif "Proyectil" in t_actual or "Arquero" in t_actual or "Halcón" in t_actual:
-                options.append("Ataque Distancia")
+                options.append(f"Ataque Distancia{' (CD: ' + str(cd_d) + ')' if cd_d > 0 else ''}")
+                
+        # Magia
+        if getattr(self.player.logic, 'magia_desbloqueada', False):
+            costo_mp = 15
+            if self.player.logic.mana >= costo_mp:
+                options.append(f"Ataque Mágico (-{costo_mp} MP)")
+            else:
+                options.append(f"Ataque Mágico (Sin MP)")
                 
         options.extend(["Huir", "Inventario"])
         return options
@@ -675,6 +786,62 @@ class Game:
             prefix = "> " if i == self.menu_index else "  "
             text_surface = font.render(prefix + option, True, color)
             self.virtual_surface.blit(text_surface, (menu_rect.x + 20, menu_rect.y + 20 + i * 35))
+
+    def draw_enemy_info_box(self):
+        if not self.current_enemy:
+            return
+            
+        enemy = self.current_enemy
+        w, h = 400, 160
+        box_rect = pygame.Rect(MAP_WIDTH // 2 - w // 2, HEIGHT // 2 - 140, w, h)
+        
+        # Fondo y Borde
+        pygame.draw.rect(self.virtual_surface, (25, 15, 15), box_rect)
+        pygame.draw.rect(self.virtual_surface, RED, box_rect, 2)
+        
+        # Título
+        title_font = pygame.font.SysFont('Consolas', 14, bold=True)
+        self.virtual_surface.blit(title_font.render("ENEMIGO EN COMBATE", True, RED), (box_rect.x + 10, box_rect.y + 8))
+        
+        # Dibujar sprite del enemigo grande (64x64)
+        if hasattr(enemy, 'image') and enemy.image:
+            enemy_img = pygame.transform.scale(enemy.image, (64, 64))
+            self.virtual_surface.blit(enemy_img, (box_rect.x + 20, box_rect.y + 45))
+        
+        # Fuentes para la información
+        font = pygame.font.SysFont('Consolas', 18)
+        bold_font = pygame.font.SysFont('Consolas', 18, bold=True)
+        small_font = pygame.font.SysFont('Consolas', 14)
+        
+        # Nombre del enemigo
+        nombre_completo = enemy.name
+        if hasattr(enemy, 'titulo') and enemy.titulo:
+            nombre_completo += f" '{enemy.titulo}'"
+        self.virtual_surface.blit(bold_font.render(nombre_completo, True, YELLOW), (box_rect.x + 100, box_rect.y + 35))
+        
+        # Barra de HP
+        bar_x = box_rect.x + 100
+        bar_y = box_rect.y + 60
+        bar_w = 280
+        bar_h = 14
+        pygame.draw.rect(self.virtual_surface, DARK_GREY, (bar_x, bar_y, bar_w, bar_h))
+        fill = (enemy.vida / enemy.max_vida) * bar_w
+        pygame.draw.rect(self.virtual_surface, RED, (bar_x, bar_y, fill, bar_h))
+        pygame.draw.rect(self.virtual_surface, WHITE, (bar_x, bar_y, bar_w, bar_h), 1)
+        
+        # Texto HP
+        hp_text = f"HP: {enemy.vida}/{enemy.max_vida}"
+        hp_surface = small_font.render(hp_text, True, WHITE)
+        self.virtual_surface.blit(hp_surface, (bar_x + bar_w // 2 - hp_surface.get_width() // 2, bar_y - 1))
+        
+        # Stats
+        stats_y = box_rect.y + 85
+        self.virtual_surface.blit(small_font.render(f"Fuerza (ATK): {enemy.fuerza}", True, LIGHT_GREY), (box_rect.x + 100, stats_y))
+        self.virtual_surface.blit(small_font.render(f"Defensa (DEF): {enemy.defensa}", True, LIGHT_GREY), (box_rect.x + 100, stats_y + 18))
+        self.virtual_surface.blit(small_font.render(f"Def. Mág. (MAG): {getattr(enemy, 'defensa_magica', 0)}", True, LIGHT_GREY), (box_rect.x + 100, stats_y + 36))
+        
+        # Recompensa
+        self.virtual_surface.blit(small_font.render(f"Recompensa: +{enemy.xp_recompensa} XP", True, CYAN), (box_rect.x + 250, stats_y))
 
     def draw_inventory_menu(self):
         inv = self.player.inventory
@@ -710,7 +877,8 @@ class Game:
             ("ARMA", self.player.logic.arma),
             ("CABEZA", self.player.logic.casco),
             ("PECHO", self.player.logic.pechera),
-            ("PIES", self.player.logic.botas)
+            ("PIES", self.player.logic.botas),
+            ("ACCES.", getattr(self.player.logic, 'accesorio', None))
         ]
         for label, item in slots:
             self.virtual_surface.blit(small_font.render(label, True, LIGHT_GREY), (eq_rect.x + 10, y_eq))
@@ -739,6 +907,8 @@ class Game:
                 if item == logic.arma: is_equipped = True
             elif isinstance(item, Armadura):
                 if item in [logic.casco, logic.pechera, logic.botas]: is_equipped = True
+            elif item.__class__.__name__ == "Accesorio":
+                if item == getattr(logic, 'accesorio', None): is_equipped = True
 
             color = CYAN if i == self.menu_index else (GREEN if is_equipped else WHITE)
             prefix = "> " if i == self.menu_index else "  "
@@ -765,17 +935,18 @@ class Game:
             self.draw_description_box("Cerrar el inventario y volver al juego.")
 
     def draw_shop_menu(self):
-        w = 450
-        menu_rect = pygame.Rect(MAP_WIDTH // 2 - w // 2, HEIGHT // 2 - 110, w, 220)
+        w = 470
+        menu_rect = pygame.Rect(MAP_WIDTH // 2 - w // 2, HEIGHT // 2 - 120, w, 240)
         pygame.draw.rect(self.virtual_surface, (30, 20, 20), menu_rect)
         pygame.draw.rect(self.virtual_surface, YELLOW, menu_rect, 2)
         font = pygame.font.SysFont('Consolas', 18)
         self.virtual_surface.blit(font.render("TIENDA DEL MERCADER", True, YELLOW), (menu_rect.x + 20, menu_rect.y + 10))
-        options = ["Pocion Media (100 Cobre)", "Arma Aleatoria (500 Cobre)", "Pocion Regreso (10 Cobre)", "Vender Objeto", "Salir"]
+        options = ["Pocion Media (100 Cobre)", "Arma Aleatoria (500 Cobre)", "Pocion Regreso (10 Cobre)", "Grimorio Mágico (1 Oro)", "Vender Objeto", "Salir"]
         descriptions = [
             "Restaura el 50% de tu salud máxima.",
             "Un arma poderosa acorde a tu nivel actual.",
             "Te permite volver al pueblo pero pierdes XP.",
+            "Desbloquea la habilidad de usar magia (Ataque Mágico).",
             "Vende tus objetos por la mitad de su valor.",
             "Cierra la tienda del mercader."
         ]
@@ -784,6 +955,40 @@ class Game:
             prefix = "> " if i == self.menu_index else "  "
             self.virtual_surface.blit(font.render(prefix + option, True, color), (menu_rect.x + 20, menu_rect.y + 40 + i * 32))
         
+        self.draw_description_box(descriptions[self.menu_index])
+
+    def draw_cross_menu(self):
+        w = 400
+        menu_rect = pygame.Rect(MAP_WIDTH // 2 - w // 2, HEIGHT // 2 - 110, w, 220)
+        pygame.draw.rect(self.virtual_surface, (20, 20, 30), menu_rect)
+        pygame.draw.rect(self.virtual_surface, YELLOW, menu_rect, 2)
+        font = pygame.font.SysFont('Consolas', 18)
+        self.virtual_surface.blit(font.render("CRUZ SAGRADA", True, YELLOW), (menu_rect.x + 20, menu_rect.y + 10))
+        
+        import datetime
+        hoy = datetime.date.today().isoformat()
+        if self.player.logic.cruz_ultimo_dia != hoy:
+            self.player.logic.cruz_usos_hoy = 3
+            
+        usos = self.player.logic.cruz_usos_hoy
+        options = [
+            "Guardar Partida",
+            f"Rezar ({usos} usos hoy)",
+            "Cuestionar las Creencias",
+            "Salir"
+        ]
+        descriptions = [
+            "Guarda tu progreso actual en el pueblo.",
+            "Recupera toda tu vida y maná.",
+            "Cuestionas tus creencias. Agota tus rezos diarios.",
+            "Te alejas de la Cruz Sagrada."
+        ]
+        
+        for i, option in enumerate(options):
+            color = CYAN if i == self.menu_index else WHITE
+            prefix = "> " if i == self.menu_index else "  "
+            self.virtual_surface.blit(font.render(prefix + option, True, color), (menu_rect.x + 20, menu_rect.y + 50 + i * 30))
+            
         self.draw_description_box(descriptions[self.menu_index])
 
     def draw_sell_menu(self):
@@ -925,6 +1130,27 @@ class Game:
                 pygame.draw.line(self.virtual_surface, WHITE, (cursor_x, box_rect.y + 10), (cursor_x, box_rect.y + 40), 2)
 
         self.virtual_surface.blit(pygame.font.SysFont('Consolas', 20).render("Pulsa ENTER para confirmar", True, LIGHT_GREY), (WIDTH//2 - 130, HEIGHT//2 + 100))
+
+    def draw_difficulty_selection_screen(self):
+        self.virtual_surface.fill((10, 10, 20))
+        title_font = pygame.font.SysFont('Consolas', 40, bold=True)
+        font = pygame.font.SysFont('Consolas', 30)
+        
+        self.virtual_surface.blit(title_font.render("SELECCIONA LA DIFICULTAD", True, YELLOW), (WIDTH//2 - 250, HEIGHT//2 - 150))
+        
+        options = ["La vida es fácil", "La vida es normal"]
+        descriptions = [
+            "Pierdes 20% de XP y la mitad de tu oro al morir. Mantienes tus objetos.",
+            "Modo Hardcore. Pierdes tu inventario, oro y equipo al morir."
+        ]
+        
+        for i, option in enumerate(options):
+            color = CYAN if i == self.menu_index else WHITE
+            prefix = "> " if i == self.menu_index else "  "
+            self.virtual_surface.blit(font.render(prefix + option, True, color), (WIDTH//2 - 200, HEIGHT//2 - 50 + i * 50))
+            
+        desc_font = pygame.font.SysFont('Consolas', 18)
+        self.virtual_surface.blit(desc_font.render(descriptions[self.menu_index], True, LIGHT_GREY), (WIDTH//2 - 300, HEIGHT//2 + 100))
 
     def draw_load_selection(self):
         self.virtual_surface.fill((10, 10, 20))
@@ -1142,17 +1368,27 @@ class Game:
                             filename = self.save_files[self.menu_index]
                             save_data = SaveManager.load_game(filename)
                             if save_data:
-                                self.start_saved_game(save_data)
+                                self.start_saved_game(save_data, filename)
 
                 elif self.state == "NAME_INPUT":
                     if event.key == pygame.K_BACKSPACE:
                         self.character_name = self.character_name[:-1]
                     elif event.key == pygame.K_RETURN:
                         if len(self.character_name.strip()) > 0:
-                            self.start_game("aventurero", self.character_name.strip())
+                            self.state = "DIFFICULTY_SELECTION"
+                            self.menu_index = 0
                     elif event.unicode.isalnum() or event.key == pygame.K_SPACE:
                         if len(self.character_name) < 15:
                             self.character_name += event.unicode
+                            
+                elif self.state == "DIFFICULTY_SELECTION":
+                    if event.key == pygame.K_UP or event.key == pygame.K_w:
+                        self.menu_index = max(0, self.menu_index - 1)
+                    elif event.key == pygame.K_DOWN or event.key == pygame.K_s:
+                        self.menu_index = min(1, self.menu_index + 1)
+                    elif event.key == pygame.K_RETURN:
+                        dificultad = "facil" if self.menu_index == 0 else "normal"
+                        self.start_game("aventurero", self.character_name.strip(), dificultad)
                         
                 elif self.state == "PLAYING":
                     # Movimiento
@@ -1206,7 +1442,7 @@ class Game:
                     if event.key == pygame.K_UP or event.key == pygame.K_w:
                         self.menu_index = max(0, self.menu_index - 1)
                     if event.key == pygame.K_DOWN or event.key == pygame.K_s:
-                        self.menu_index = min(4, self.menu_index + 1)
+                        self.menu_index = min(5, self.menu_index + 1)
                     if event.key == pygame.K_RETURN:
                         if self.menu_index == 0:
                             if self.player.logic.gastar_monedas(100):
@@ -1239,9 +1475,18 @@ class Game:
                             else:
                                 self.log.add_message("[MERCADER] No tienes dinero.")
                         elif self.menu_index == 3:
+                            if self.player.logic.gastar_monedas(10000):
+                                from items.potion import LibroMagia
+                                item = LibroMagia()
+                                self.player.add_to_inventory(item)
+                                self.log.add_message("[MERCADER] El conocimiento es poder.")
+                                self.spawn_floating_text(f"+{item.nombre}", self.player.rect.centerx, self.player.rect.top, YELLOW)
+                            else:
+                                self.log.add_message("[MERCADER] Ese libro es muy caro para ti.")
+                        elif self.menu_index == 4:
                             self.state = "SELL"
                             self.menu_index = 0
-                        elif self.menu_index == 4:
+                        elif self.menu_index == 5:
                             self.state = "PLAYING"
                 
                 elif self.state == "SELL":
@@ -1460,6 +1705,58 @@ class Game:
                             self.state = "PLAYING"
                     if event.key == pygame.K_ESCAPE:
                         self.state = "PLAYING"
+
+                elif self.state == "CROSS_MENU":
+                    if event.key == pygame.K_UP or event.key == pygame.K_w:
+                        self.menu_index = max(0, self.menu_index - 1)
+                    elif event.key == pygame.K_DOWN or event.key == pygame.K_s:
+                        self.menu_index = min(3, self.menu_index + 1)
+                    elif event.key == pygame.K_ESCAPE:
+                        self.state = "PLAYING"
+                    elif event.key == pygame.K_RETURN:
+                        import datetime
+                        hoy = datetime.date.today().isoformat()
+                        
+                        if self.player.logic.cruz_ultimo_dia != hoy:
+                            self.player.logic.cruz_usos_hoy = 3
+                            
+                        if self.menu_index == 0:
+                            # GUARDAR
+                            save_success = SaveManager.save_game(self, getattr(self, "current_save_file", None))
+                            if save_success:
+                                self.log.add_message("[SISTEMA] Partida guardada correctamente.")
+                                self.spawn_floating_text("¡Partida Guardada!", self.player.rect.centerx, self.player.rect.top - 20, GREEN)
+                            else:
+                                self.log.add_message("[SISTEMA] No se pudo guardar la partida.")
+                        elif self.menu_index == 1:
+                            # REZAR (Curación)
+                            if self.player.logic.cruz_usos_hoy > 0:
+                                self.player.logic.cruz_usos_hoy -= 1
+                                self.player.logic.cruz_ultimo_dia = hoy
+                                
+                                self.player.logic.vida = self.player.logic.max_vida
+                                self.player.logic.mana = self.player.logic.max_mana
+                                
+                                self.log.add_message(f"[CRUZ] Rezas con devoción. Tu cuerpo y mente se restauran. (Usos restantes: {self.player.logic.cruz_usos_hoy})")
+                                self.spawn_floating_text("¡Vida y Maná al Máx!", self.player.rect.centerx, self.player.rect.top - 20, CYAN)
+                            else:
+                                self.log.add_message("[CRUZ] No tienes más usos de oración por hoy.")
+                        elif self.menu_index == 2:
+                            # CUESTIONAR LAS CREENCIAS
+                            self.player.logic.cruz_usos_hoy = 0
+                            self.player.logic.cruz_ultimo_dia = hoy
+                            
+                            if "cuestionamientos" not in self.player.logic.acciones:
+                                self.player.logic.acciones["cuestionamientos"] = 0
+                            self.player.logic.acciones["cuestionamientos"] += 1
+                            
+                            self.log.add_message("[CRUZ] Cuestionas las creencias. Una profunda duda te invade. Los usos de oración se han agotado.")
+                            self.spawn_floating_text("¿Fe cuestionada?", self.player.rect.centerx, self.player.rect.top - 20, RED)
+                            
+                            self.player.logic.verificar_titulos(self.log)
+                        elif self.menu_index == 3:
+                            # SALIR
+                            self.state = "PLAYING"
 
 if __name__ == "__main__":
     g = Game()

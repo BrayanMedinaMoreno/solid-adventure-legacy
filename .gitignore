@@ -19,10 +19,11 @@ venv.bak/
 Thumbs.db
 desktop.ini
 
-# Guía local
-guia_proyecto.txt
+# Archivos de texto
+*.txt
 
 # Carpetas de recursos temporales
 assets/sprites/temp_sprites/
-E N C I C L O P E D I A _ T I T U L O S . t x t  
-items.txt
+
+# Saves
+saves/

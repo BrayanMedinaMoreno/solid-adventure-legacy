@@ -28,7 +28,11 @@ class Chest(pygame.sprite.Sprite):
         # Generar aleatoriamente
         if random.random() < 0.4: # 40% de probabilidad de ser poción
             tipo_p = random.choices(["pequeña", "media", "grande"], weights=[80, 15, 5])[0]
-            item = Pocion(tipo_p)
+            if random.random() < 0.5:
+                item = Pocion(tipo_p)
+            else:
+                from items.potion import PocionMana
+                item = PocionMana(tipo_p)
         else:
             clases = ["guerrero", "tirador"]
             clase_p = random.choice(clases)
@@ -43,9 +47,17 @@ class Chest(pygame.sprite.Sprite):
             
             daño_def = random.randint(5, 20)
             
-            if random.random() < 0.7: # 70% Arma, 30% Armadura
+            rand_gear = random.random()
+            if rand_gear < 0.2: # 20% Accesorio
+                from logic.accesorios import Accesorio
+                nombres_acc = ["Anillo de Rubí", "Amuleto de Hierro", "Brazalete de Zafiro", "Collar Místico"]
+                stat = random.choice(["fuerza", "defensa", "magia", "max_vida", "max_mana"])
+                val = random.randint(2, 15)
+                if stat in ["max_vida", "max_mana"]: val *= 5
+                item = Accesorio(random.choice(nombres_acc), {stat: val})
+            elif rand_gear < 0.7: # 50% Arma
                 item = Arma(random.choice(nombres[clase_p]), daño_def, clase_p)
-            else:
+            else: # 30% Armadura
                 defensa = daño_def // 2 + 2
                 item = Armadura(random.choice(nombres_armadura[clase_p]), defensa, clase_p)
         

@@ -50,6 +50,7 @@ class Level:
                     self.map_data[y][x] = 0
                     self.floor_tiles.append((x, y))
             self.stairs_down = (self.width_tiles // 2, self.height_tiles - 4)
+            self.entrance = (self.width_tiles // 2, self.height_tiles // 2 + 2)
             return
 
         # Llenar todo de muros (1) para calabozo

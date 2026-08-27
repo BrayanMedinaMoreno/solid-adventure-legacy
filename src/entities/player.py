@@ -2,7 +2,7 @@ import pygame
 from settings import *
 from logic.personaje import Personaje
 from logic.armas import Arma
-from items.potion import Pocion, PocionRegreso
+from items.potion import Pocion, PocionRegreso, PocionMana
 
 class Player(pygame.sprite.Sprite):
     def __init__(self, game, x, y, clase_elegida="guerrero", logic=None, inventory=None, nombre=None):
@@ -104,11 +104,11 @@ class Player(pygame.sprite.Sprite):
                             self.game.load_level()
 
     def add_to_inventory(self, item):
-        # Solo apilar Pociones y Pociones de Regreso
-        if isinstance(item, (Pocion, PocionRegreso)):
+        # Solo apilar Pociones, Pociones de Regreso y Pociones de Maná
+        if isinstance(item, (Pocion, PocionRegreso, PocionMana)):
             for inv_item in self.inventory:
                 if type(inv_item) == type(item):
-                    if isinstance(item, Pocion):
+                    if isinstance(item, (Pocion, PocionMana)):
                         if inv_item.tipo == item.tipo:
                             inv_item.cantidad += 1
                             return

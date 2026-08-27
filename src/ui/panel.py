@@ -59,18 +59,22 @@ class Panel:
         
         # Barra de HP
         self.draw_bar(surface, start_x, y + 20, UI_WIDTH - 50, 15, logic.vida, logic.max_vida, RED, "HP")
-        y += 55
+        y += 45
+        
+        # Barra de MP
+        self.draw_bar(surface, start_x, y + 20, UI_WIDTH - 50, 10, getattr(logic, 'mana', 0), getattr(logic, 'max_mana', 0), BLUE, "MP")
+        y += 40
         
         # Barra de XP
         self.draw_bar(surface, start_x, y + 20, UI_WIDTH - 50, 10, logic.xp, logic.xp_necesaria, CYAN, "XP")
-        y += 50
+        y += 40
 
         # Atributos con iconos simples
         arma_actual = logic.arma if hasattr(logic, 'arma') else logic.espada
         stats = [
-            (f" ATK: {logic.fuerza} (+{arma_actual.daño})", (255, 150, 50)),
+            (f" ATK: {logic.fuerza} (+{arma_actual.daño if arma_actual else 0})", (255, 150, 50)),
             (f" DEF: {logic.defensa}", (100, 150, 255)),
-            (f" MAG: {logic.defensa_magica}", (180, 100, 255))
+            (f" MAG: {getattr(logic, 'magia', 0)}", (180, 100, 255))
         ]
         for text, color in stats:
             pygame.draw.rect(surface, color, (start_x, y + 5, 8, 8))
@@ -115,7 +119,8 @@ class Panel:
         slots = [
             ("Casco:", logic.casco),
             ("Pecho:", logic.pechera),
-            ("Pies:", logic.botas)
+            ("Pies:", logic.botas),
+            ("Accs.:", getattr(logic, 'accesorio', None))
         ]
         for label, item in slots:
             self.draw_text(surface, label, start_x, y, self.font, LIGHT_GREY)

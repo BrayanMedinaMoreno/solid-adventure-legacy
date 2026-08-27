@@ -46,3 +46,12 @@ class Banquero(NPC):
         self.game.log.add_message("[BANQUERO] Protejo tus riquezas.")
         self.game.state = "BANK"
         self.game.menu_index = 0
+
+class CruzInteractiva(NPC):
+    def __init__(self, game, x, y):
+        super().__init__(game, x, y, YELLOW, "Cruz Sagrada", "assets/sprites/Cruz.png")
+
+    def interact(self):
+        self.game.log.add_message("[CRUZ] Te aproximas a la Cruz Sagrada.")
+        self.game.state = "CROSS_MENU"
+        self.game.menu_index = 0

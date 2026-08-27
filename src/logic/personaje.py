@@ -42,6 +42,22 @@ TITULOS_DATA = {
         "bono": {"fuerza": 45, "daño_distancia": 15},
         "bono_pasivo_oculto": {"esquiva_basica": 0.20}
     },
+    # SENDA DE LO ARCANO (MAGIA)
+    "Aprendiz de lo Arcano": {
+        "descripcion": "La chispa de la magia nace en ti. +10 Max Mana, +2 Magia.",
+        "req": {"magia_desbloqueada": 1},
+        "bono": {"max_mana": 10, "magia": 2}
+    },
+    "Mago de Batalla": {
+        "descripcion": "Conjuras en medio del caos. +30 Max Mana, +8 Magia.",
+        "req": {"usos_magia": 100, "titulos": ["Aprendiz de lo Arcano"]},
+        "bono": {"max_mana": 30, "magia": 8}
+    },
+    "Archimago": {
+        "descripcion": "El tejido de la realidad se dobla ante ti. +100 Max Mana, +20 Magia.",
+        "req": {"usos_magia": 500, "titulos": ["Mago de Batalla"]},
+        "bono": {"max_mana": 100, "magia": 20}
+    },
     # SENDA DEL EXTERMINADOR (MONSTRUOS)
     "Cazador de Slimes": {
         "descripcion": "Esas masas ya no son un reto. +4 Defensa. (Req: 100 muertes)",
@@ -73,6 +89,11 @@ TITULOS_DATA = {
         "descripcion": "El calabozo se inclina ante ti. +300 Vida, +20 Atk, +20 Def.",
         "req": {"nivel": 50, "cofres_abiertos": 100, "titulos": ["Explorador del Abismo"]},
         "bono": {"max_vida": 300, "fuerza": 20, "defensa": 20}
+    },
+    "Cuestionar": {
+        "descripcion": "Has dudado de la divinidad. Tu fe flaquea pero tu mente se expande. +15 Magia, +10 Max Mana. (Req: Cuestionar creencias 5 veces)",
+        "req": {"cuestionamientos": 5},
+        "bono": {"magia": 15, "max_mana": 10}
     },
     # LINEA DE ESQUIVA (PASIVOS)
     "Esquiva de Novato": {
@@ -186,10 +207,20 @@ class Personaje:
         self.nombre = nombre
         self.fuerza_base = fuerza
         self.fe_base = fe
+        self.magia_base = 0 # Estadistica mágica
         self.defensa_base = defensa
         self.defensa_magica_base = 0
         self.vida = vida
         self.max_vida_base = vida
+        
+        # Sistema de Maná
+        self.mana = 50
+        self.max_mana_base = 50
+        self.magia_desbloqueada = False
+        
+        # Cruz Sagrada
+        self.cruz_usos_hoy = 3
+        self.cruz_ultimo_dia = ""
         
         self.nivel = 1
         self.xp = 0
@@ -206,7 +237,10 @@ class Personaje:
         self.casco = None
         self.pechera = None
         self.botas = None
+        self.accesorio = None
         self.baul = []
+        
+        self.cooldowns = {"habilidad": 0, "distancia": 0}
         
         # Sistema de Títulos
         self.titulo_actual = "Hoja en Blanco"
@@ -248,7 +282,9 @@ class Personaje:
             "regen_activaciones_baja": 0,
             "regen_activaciones_intermedia": 0,
             "regen_activaciones_media": 0,
-            "regen_activaciones_alta": 0
+            "regen_activaciones_alta": 0,
+            "usos_magia": 0,
+            "cuestionamientos": 0
         }
         self.aliento_usado_combate = False
         self.min_porcentaje_vida_combate = 100.0
@@ -257,7 +293,8 @@ class Personaje:
     @property
     def fuerza(self):
         bono = TITULOS_DATA[self.titulo_actual]["bono"].get("fuerza", 0)
-        return self.fuerza_base + bono
+        bono_acc = self.accesorio.bono_stats.get("fuerza", 0) if self.accesorio else 0
+        return self.fuerza_base + bono + bono_acc
 
     @property
     def defensa(self):
@@ -266,7 +303,14 @@ class Personaje:
         if self.casco: def_equipo += self.casco.defensa
         if self.pechera: def_equipo += self.pechera.defensa
         if self.botas: def_equipo += self.botas.defensa
-        return self.defensa_base + bono + def_equipo
+        bono_acc = self.accesorio.bono_stats.get("defensa", 0) if self.accesorio else 0
+        return self.defensa_base + bono + def_equipo + bono_acc
+        
+    @property
+    def magia(self):
+        bono = TITULOS_DATA[self.titulo_actual]["bono"].get("magia", 0)
+        bono_acc = self.accesorio.bono_stats.get("magia", 0) if self.accesorio else 0
+        return self.magia_base + bono + bono_acc
 
     @property
     def defensa_magica(self):
@@ -280,6 +324,8 @@ class Personaje:
     @property
     def max_vida(self):
         bono = TITULOS_DATA[self.titulo_actual]["bono"].get("max_vida", 0)
+        bono_acc = self.accesorio.bono_stats.get("max_vida", 0) if self.accesorio else 0
+        bono += bono_acc
         # Añadir bonos pasivos de títulos EQUIPADOS (como los de Arquero/Halcón)
         bono_pasivo_extra = TITULOS_DATA[self.titulo_actual].get("bono_pasivo_oculto", {})
         # ... podrías aplicar otros aquí ...
@@ -290,6 +336,12 @@ class Personaje:
             if data.get("tipo") == "pasivo":
                 bono += data.get("bono_pasivo", {}).get("max_vida", 0)
         return self.max_vida_base + bono
+        
+    @property
+    def max_mana(self):
+        bono = TITULOS_DATA[self.titulo_actual]["bono"].get("max_mana", 0)
+        bono_acc = self.accesorio.bono_stats.get("max_mana", 0) if self.accesorio else 0
+        return self.max_mana_base + bono + bono_acc
 
     def get_bono_pasivo(self, stat_name):
         total = 0
@@ -393,6 +445,17 @@ class Personaje:
             log.add_message(f"[SISTEMA] {self.nombre} ha caído en combate.")
 
     def daño(self, oponente, tipo="fisico"):
+        if tipo == "magico":
+            self.acciones["usos_magia"] += 1
+            ataque_total = self.magia
+            titulo_data = TITULOS_DATA[self.titulo_actual]
+            ataque_total += titulo_data.get("bono", {}).get("daño_magico", 0)
+            
+            defensa_oponente = oponente.defensa_magica if hasattr(oponente, 'defensa_magica') else 0
+            if ataque_total <= defensa_oponente:
+                return 0
+            return ataque_total - defensa_oponente
+
         if self.arma:
             ataque_total = self.arma.calcular_daño(self.fuerza)
         else:
@@ -467,6 +530,8 @@ class Personaje:
                         if t_req not in self.titulos_desbloqueados:
                             cumple = False
                             break
+                elif req_key == "magia_desbloqueada":
+                    if not self.magia_desbloqueada: cumple = False
                 elif self.acciones.get(req_key, 0) < req_val:
                     cumple = False
             
@@ -493,6 +558,15 @@ class Personaje:
         self.vida += curacion_real
         self.acciones["hp_regenerada_total"] += curacion_real
         self.verificar_titulos()
+        
+    def restaurar_mana(self, cantidad):
+        self.mana = min(self.max_mana, self.mana + cantidad)
+        
+    def gastar_mana(self, cantidad):
+        if self.mana >= cantidad:
+            self.mana -= cantidad
+            return True
+        return False
 
     def update_regen(self, dt):
         # Regen por segundo fuera de combate
@@ -505,7 +579,12 @@ class Personaje:
 
     def ejecutar_regen_turno(self, log=None):
         import random
-        # 1. Regen Flat (como el de fuera de combate, pero por turno)
+        # Reducir cooldowns
+        for key in self.cooldowns:
+            if self.cooldowns[key] > 0:
+                self.cooldowns[key] -= 1
+                
+        # 1. Regen Flat
         regen_flat = self.get_max_pasivo("regen_flat")
         if regen_flat > 0:
             self.curar(regen_flat)
@@ -532,9 +611,12 @@ class Personaje:
     def subir_de_nivel(self, fuerza, fe, defensa, log=None):
         self.fuerza_base += fuerza
         self.fe_base += fe
+        self.magia_base += 1 # Escala mágica básica por nivel
         self.defensa_base += defensa
         self.max_vida_base += 20
+        self.max_mana_base += 10 # Crece el Maná por nivel
         self.vida = self.max_vida
+        self.mana = self.max_mana
         self.nivel += 1
         self.xp_necesaria = int(self.xp_necesaria * 2.0)
         if log:
@@ -589,6 +671,12 @@ class Personaje:
             "defensa_base": self.defensa_base,
             "vida": self.vida,
             "max_vida_base": self.max_vida_base,
+            "mana": self.mana,
+            "max_mana_base": self.max_mana_base,
+            "magia_base": self.magia_base,
+            "magia_desbloqueada": self.magia_desbloqueada,
+            "cruz_usos_hoy": self.cruz_usos_hoy,
+            "cruz_ultimo_dia": self.cruz_ultimo_dia,
             "nivel": self.nivel,
             "xp": self.xp,
             "xp_necesaria": self.xp_necesaria,
@@ -600,19 +688,28 @@ class Personaje:
             "casco": self.casco.to_dict() if self.casco else None,
             "pechera": self.pechera.to_dict() if self.pechera else None,
             "botas": self.botas.to_dict() if self.botas else None,
+            "accesorio": self.accesorio.to_dict() if self.accesorio else None,
             "arma": self.arma.to_dict() if self.arma else None,
             "baul": baul_serialized,
             "titulo_actual": self.titulo_actual,
             "titulos_desbloqueados": self.titulos_desbloqueados,
-            "acciones": self.acciones
+            "acciones": self.acciones,
+            "cooldowns": self.cooldowns
         }
 
     def load_base_stats(self, data):
         self.fuerza_base = data.get("fuerza_base", data.get("fuerza", 10))
         self.fe_base = data.get("fe_base", data.get("fe", 0))
+        self.magia_base = data.get("magia_base", 0)
         self.defensa_base = data.get("defensa_base", data.get("defensa", 5))
         self.vida = data["vida"]
         self.max_vida_base = data.get("max_vida_base", data.get("max_vida", 100))
+        self.mana = data.get("mana", 50)
+        self.max_mana_base = data.get("max_mana_base", 50)
+        self.magia_desbloqueada = data.get("magia_desbloqueada", False)
+        self.cruz_usos_hoy = data.get("cruz_usos_hoy", 3)
+        self.cruz_ultimo_dia = data.get("cruz_ultimo_dia", "")
+        self.cooldowns = data.get("cooldowns", {"habilidad": 0, "distancia": 0})
         self.nivel = data["nivel"]
         self.xp = data["xp"]
         self.xp_necesaria = data["xp_necesaria"]
@@ -628,10 +725,13 @@ class Personaje:
         self.acciones = data.get("acciones", self.acciones)
         
         from logic.armaduras import Armadura
+        from logic.accesorios import Accesorio
+        
         if data.get("casco"): self.casco = Armadura.from_dict(data["casco"])
         if data.get("pechera"): self.pechera = Armadura.from_dict(data["pechera"])
         if data.get("botas"): self.botas = Armadura.from_dict(data["botas"])
         if data.get("armadura"): self.pechera = Armadura.from_dict(data["armadura"]) # Compatibilidad
+        if data.get("accesorio"): self.accesorio = Accesorio.from_dict(data["accesorio"])
         
         if data.get("arma"):
             self.arma = Arma.from_dict(data["arma"])
