@@ -8,7 +8,8 @@ class Panel:
         self.font = pygame.font.SysFont('Consolas', 18)
         self.title_font = pygame.font.SysFont('Consolas', 24, bold=True)
         
-        # Cargar icono de arma si existe
+        # Cargar icono de arma por defecto y caché de iconos
+        self.weapon_icons = {}
         self.weapon_icon = None
         try:
             img = pygame.image.load('assets/sprites/espada_oxidada.png').convert_alpha()
@@ -36,6 +37,8 @@ class Panel:
             surface.blit(text, (x + 5, y - 20))
 
     def draw(self, surface):
+        # Dibujar fondo oscuro para el panel de la derecha
+        pygame.draw.rect(surface, (10, 10, 15), (MAP_WIDTH, 0, UI_WIDTH, HEIGHT))
         player = self.game.player
         start_x = MAP_WIDTH + 20
         y = 20
@@ -110,8 +113,20 @@ class Panel:
         armadura_actual = logic.armadura if hasattr(logic, 'armadura') else None
         
         self.draw_text(surface, "Arma:", start_x, y, self.font, LIGHT_GREY)
-        if self.weapon_icon and arma_actual:
-            surface.blit(self.weapon_icon, (start_x + 60, y - 2))
+        icon_to_draw = None
+        if arma_actual and hasattr(arma_actual, 'sprite_path') and arma_actual.sprite_path:
+            if arma_actual.sprite_path not in self.weapon_icons:
+                try:
+                    img = pygame.image.load(arma_actual.sprite_path).convert_alpha()
+                    self.weapon_icons[arma_actual.sprite_path] = pygame.transform.scale(img, (20, 20))
+                except Exception:
+                    self.weapon_icons[arma_actual.sprite_path] = None
+            icon_to_draw = self.weapon_icons.get(arma_actual.sprite_path)
+        if not icon_to_draw:
+            icon_to_draw = self.weapon_icon
+
+        if icon_to_draw and arma_actual:
+            surface.blit(icon_to_draw, (start_x + 60, y - 2))
             self.draw_text(surface, arma_actual.nombre, start_x + 85, y, self.font, YELLOW)
         else:
             self.draw_text(surface, arma_actual.nombre if arma_actual else "Ninguna", start_x + 60, y, self.font, YELLOW)

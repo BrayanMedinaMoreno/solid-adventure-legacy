@@ -5,7 +5,7 @@ WIDTH = 1024
 HEIGHT = 768
 
 # Tamaño del Grid / Tiles
-TILESIZE = 32
+TILESIZE = 48
 
 # Configuración de FPS
 FPS = 60

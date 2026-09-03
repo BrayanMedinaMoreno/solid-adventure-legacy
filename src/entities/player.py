@@ -74,6 +74,7 @@ class Player(pygame.sprite.Sprite):
                     nuevo_item = chest.open()
                     self.add_to_inventory(nuevo_item)
                     self.game.spawn_floating_text(f"+{nuevo_item.nombre}", self.rect.centerx, self.rect.top - 20, YELLOW)
+                    self.game.show_chest_reward(nuevo_item)
                 else:
                     self.x = dest_x
                     self.y = dest_y
@@ -103,18 +104,21 @@ class Player(pygame.sprite.Sprite):
                             self.game.log.add_message(f"[SISTEMA] Bajas al Nivel {self.game.profundidad}")
                             self.game.load_level()
 
-    def add_to_inventory(self, item):
+    def add_to_inventory(self, item, cantidad=1):
+        if cantidad <= 0:
+            return
         # Solo apilar Pociones, Pociones de Regreso y Pociones de Maná
         if isinstance(item, (Pocion, PocionRegreso, PocionMana)):
             for inv_item in self.inventory:
                 if type(inv_item) == type(item):
                     if isinstance(item, (Pocion, PocionMana)):
                         if inv_item.tipo == item.tipo:
-                            inv_item.cantidad += 1
+                            inv_item.cantidad += cantidad
                             return
                     else: # PocionRegreso
-                        inv_item.cantidad += 1
+                        inv_item.cantidad += cantidad
                         return
+            item.cantidad = cantidad
         
         # Si no es apilable o no se encontró en el inventario
         self.inventory.append(item)

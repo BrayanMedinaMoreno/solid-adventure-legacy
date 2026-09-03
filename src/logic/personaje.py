@@ -220,7 +220,8 @@ class Personaje:
         
         # Cruz Sagrada
         self.cruz_usos_hoy = 3
-        self.cruz_ultimo_dia = ""
+        self.cruz_ultimo_tiempo = -900.0
+        self.tiempo_juego = 0.0
         
         self.nivel = 1
         self.xp = 0
@@ -676,7 +677,8 @@ class Personaje:
             "magia_base": self.magia_base,
             "magia_desbloqueada": self.magia_desbloqueada,
             "cruz_usos_hoy": self.cruz_usos_hoy,
-            "cruz_ultimo_dia": self.cruz_ultimo_dia,
+            "cruz_ultimo_tiempo": self.cruz_ultimo_tiempo,
+            "tiempo_juego": self.tiempo_juego,
             "nivel": self.nivel,
             "xp": self.xp,
             "xp_necesaria": self.xp_necesaria,
@@ -708,7 +710,8 @@ class Personaje:
         self.max_mana_base = data.get("max_mana_base", 50)
         self.magia_desbloqueada = data.get("magia_desbloqueada", False)
         self.cruz_usos_hoy = data.get("cruz_usos_hoy", 3)
-        self.cruz_ultimo_dia = data.get("cruz_ultimo_dia", "")
+        self.cruz_ultimo_tiempo = data.get("cruz_ultimo_tiempo", -900.0)
+        self.tiempo_juego = data.get("tiempo_juego", 0.0)
         self.cooldowns = data.get("cooldowns", {"habilidad": 0, "distancia": 0})
         self.nivel = data["nivel"]
         self.xp = data["xp"]
