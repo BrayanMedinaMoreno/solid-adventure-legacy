@@ -150,10 +150,7 @@ class SlimeRosa(Enemy):
         
         self.frames = []
         try:
-            import os
             path = 'assets/sprites/idle_slime_3.png'
-            if not os.path.exists(path):
-                path = 'assets/sprites/idle_slime_rosa'
             sheet = pygame.image.load(path).convert_alpha()
             w, h = sheet.get_size()
             frame_w = 24
