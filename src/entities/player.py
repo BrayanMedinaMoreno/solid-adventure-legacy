@@ -50,9 +50,10 @@ class Player(pygame.sprite.Sprite):
             self.add_to_inventory(espada_madera)
             self.add_to_inventory(honda_basica)
             
-            for _ in range(3):
+            for _ in range(4):
                 self.add_to_inventory(Pocion("media"))
-            self.add_to_inventory(PocionRegreso())
+            for _ in range(4):
+                self.add_to_inventory(PocionRegreso())
 
     def move(self, dx=0, dy=0):
         # Comprobar si el destino es suelo o pared

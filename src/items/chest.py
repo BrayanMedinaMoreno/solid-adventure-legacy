@@ -52,7 +52,7 @@ class Chest(pygame.sprite.Sprite):
                 from logic.accesorios import Accesorio
                 nombres_acc = ["Anillo de Rubí", "Amuleto de Hierro", "Brazalete de Zafiro", "Collar Místico"]
                 stat = random.choice(["fuerza", "defensa", "magia", "max_vida", "max_mana"])
-                val = random.randint(2, 15)
+                val = int(random.randint(2, 15) * 0.95)
                 if stat in ["max_vida", "max_mana"]: val *= 5
                 item = Accesorio(random.choice(nombres_acc), {stat: val})
             elif rand_gear < 0.7: # 50% Arma

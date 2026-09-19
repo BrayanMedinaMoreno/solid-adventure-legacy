@@ -5,12 +5,91 @@ from settings import *
 class Goblin(Enemy):
     def __init__(self, game, x, y):
         super().__init__(game, x, y)
+        import random
         self.name = "Goblin"
         self.vida = 50
         self.max_vida = 50
         self.fuerza = 14
         self.defensa = 2
         self.xp_recompensa = 20
+        self.loot_extra = [] # Tuplas de (Item, drop_chance)
+        
+        from logic.armas import Arma
+        from logic.armaduras import Armadura
+        from logic.accesorios import Accesorio
+        
+        # Arma
+        if random.random() < 0.40:
+            dmg = random.randint(4, 10)
+            tipo_arma = random.choice(["fisico", "contundente"])
+            nombres = ["Espada Oxidada de Goblin", "Mazo Astillado", "Daga Mellada"]
+            arma = Arma(random.choice(nombres), dmg, tipo_arma)
+            self.fuerza += arma.daño
+            self.loot_extra.append((arma, 0.10)) # 10% de drop
+            self.name = "Goblin Armado"
+            self.xp_recompensa += 5
+            
+        # Casco
+        if random.random() < 0.30:
+            df = random.randint(1, 3)
+            max_d = random.randint(150, 300)
+            cur_d = random.randint(5, int(max_d * 0.2)) # Muy gastado (max 20% o poco)
+            armadura = Armadura("Casco Roto de Goblin", df, "casco", None, cur_d, max_d)
+            self.defensa += armadura.defensa
+            self.loot_extra.append((armadura, 0.10))
+            self.xp_recompensa += 5
+            
+        # Pechera
+        if random.random() < 0.30:
+            df = random.randint(1, 3)
+            max_d = random.randint(150, 300)
+            cur_d = random.randint(5, int(max_d * 0.2))
+            armadura = Armadura("Pechera Astillada", df, "pechera", None, cur_d, max_d)
+            self.defensa += armadura.defensa
+            self.loot_extra.append((armadura, 0.10))
+            self.xp_recompensa += 5
+            self.name = "Goblin Acorazado"
+            
+        # Botas
+        if random.random() < 0.30:
+            df = random.randint(1, 3)
+            max_d = random.randint(150, 300)
+            cur_d = random.randint(5, int(max_d * 0.2))
+            armadura = Armadura("Botas Desgastadas", df, "botas", None, cur_d, max_d)
+            self.defensa += armadura.defensa
+            self.loot_extra.append((armadura, 0.10))
+            self.xp_recompensa += 5
+            
+        # Accesorio (fórmula normal)
+        if random.random() < 0.15: # 15% de tener un accesorio
+            bono = random.randint(5 + game.player.logic.nivel, 15 + game.player.logic.nivel*2)
+            bono = int(bono * 0.95)
+            stat = random.choice(["fuerza", "defensa", "magia", "max_vida", "max_mana"])
+            val = bono * 5 if stat in ["max_vida", "max_mana"] else bono
+            max_d = random.randint(150, 300)
+            cur_d = random.randint(5, int(max_d * 0.2))
+            acc = Accesorio("Talismán de Goblin", {stat: val}, cur_d, max_d)
+            # Aumentar estadísticas del goblin según el accesorio
+            if stat == "max_vida":
+                self.max_vida += val
+                self.vida += val
+            elif stat == "fuerza":
+                self.fuerza += val
+            elif stat == "defensa":
+                self.defensa += val
+                
+            self.loot_extra.append((acc, 0.05)) # 5% drop para accesorios (más raros de soltar)
+            self.name = "Goblin Campeón"
+            self.xp_recompensa += 15
+            
+        if random.random() < 0.30: # 30% chance for armor
+            from logic.armaduras import Armadura
+            df = random.randint(3, 8)
+            armadura = Armadura(f"Pechera de Goblin", df, "pechera")
+            self.defensa += armadura.defensa
+            self.loot_extra.append(armadura)
+            self.name = "Goblin Acorazado" if self.name == "Goblin" else "Goblin Campeón"
+            self.xp_recompensa += 10
         
         self.frames = []
         try:

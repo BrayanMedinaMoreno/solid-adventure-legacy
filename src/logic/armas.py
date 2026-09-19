@@ -2,10 +2,17 @@ class Arma:
     def __init__(self, nombre, daño, tipo_daño="fisico", sprite_path=None):
         self.nombre = nombre
         self.daño = daño
-        self.tipo_daño = tipo_daño # "fisico" (melee) o "distancia" (proyectiles)
+        self.tipo_daño = tipo_daño # "fisico" (melee), "distancia" (proyectiles), "contundente" (mazos), "magico" (varitas)
         self.sprite_path = sprite_path or self.determinar_sprite()
         
-        tipo_str = "[MELEE]" if tipo_daño == "fisico" else "[DISTANCIA]"
+        if self.tipo_daño == "fisico":
+            tipo_str = "[MELEE]"
+        elif self.tipo_daño == "contundente":
+            tipo_str = "[CONTUNDENTE]"
+        elif self.tipo_daño == "magico":
+            tipo_str = "[MAGICO]"
+        else:
+            tipo_str = "[DISTANCIA]" if tipo_daño == "fisico" else "[DISTANCIA]"
         self.descripcion = f"{tipo_str} Un arma de ataque. Daño base: {daño}."
 
     def determinar_sprite(self):
@@ -14,6 +21,10 @@ class Arma:
             return "assets/sprites/hacha_32x32.png"
         elif "oxidada" in n_lower:
             return "assets/sprites/espada_oxidada.png"
+        elif "mazo" in n_lower or "martillo" in n_lower:
+            return "assets/sprites/mazo.png"
+        elif "varita" in n_lower or "báculo" in n_lower or "cetro" in n_lower:
+            return "assets/sprites/varita.png"
         elif self.tipo_daño == "fisico" or "espada" in n_lower:
             return "assets/sprites/espada_1.png"
         return None

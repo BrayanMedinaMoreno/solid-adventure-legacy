@@ -57,7 +57,8 @@ class Panel:
         logic = player.logic
         self.draw_text(surface, f"NIVEL {logic.nivel}", start_x, y, self.title_font, YELLOW)
         y += 25
-        self.draw_text(surface, logic.titulo_actual, start_x, y, self.font, CYAN)
+        n_t = len(getattr(logic, "titulos_activos", []))
+        self.draw_text(surface, f"{n_t} Titulos" if n_t != 1 else (logic.titulos_activos[0] if n_t == 1 else "Ninguno"), start_x, y, self.font, CYAN)
         y += 35
         
         # Barra de HP

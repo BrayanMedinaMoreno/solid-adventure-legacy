@@ -244,7 +244,7 @@ class Personaje:
         self.cooldowns = {"habilidad": 0, "distancia": 0}
         
         # Sistema de Títulos
-        self.titulo_actual = "Hoja en Blanco"
+        self.titulos_activos = ["Hoja en Blanco"]
         self.titulos_desbloqueados = ["Hoja en Blanco"]
         
         # Contadores de acciones (Huella de Identidad)
@@ -293,13 +293,13 @@ class Personaje:
 
     @property
     def fuerza(self):
-        bono = TITULOS_DATA[self.titulo_actual]["bono"].get("fuerza", 0)
+        bono = sum(TITULOS_DATA[t]["bono"].get("fuerza", 0) for t in self.titulos_activos if t in TITULOS_DATA and "bono" in TITULOS_DATA[t])
         bono_acc = self.accesorio.bono_stats.get("fuerza", 0) if self.accesorio else 0
         return self.fuerza_base + bono + bono_acc
 
     @property
     def defensa(self):
-        bono = TITULOS_DATA[self.titulo_actual]["bono"].get("defensa", 0)
+        bono = sum(TITULOS_DATA[t]["bono"].get("defensa", 0) for t in self.titulos_activos if t in TITULOS_DATA and "bono" in TITULOS_DATA[t])
         def_equipo = 0
         if self.casco: def_equipo += self.casco.defensa
         if self.pechera: def_equipo += self.pechera.defensa
@@ -309,13 +309,13 @@ class Personaje:
         
     @property
     def magia(self):
-        bono = TITULOS_DATA[self.titulo_actual]["bono"].get("magia", 0)
+        bono = sum(TITULOS_DATA[t]["bono"].get("magia", 0) for t in self.titulos_activos if t in TITULOS_DATA and "bono" in TITULOS_DATA[t])
         bono_acc = self.accesorio.bono_stats.get("magia", 0) if self.accesorio else 0
         return self.magia_base + bono + bono_acc
 
     @property
     def defensa_magica(self):
-        bono = TITULOS_DATA[self.titulo_actual]["bono"].get("defensa_magica", 0)
+        bono = sum(TITULOS_DATA[t]["bono"].get("defensa_magica", 0) for t in self.titulos_activos if t in TITULOS_DATA and "bono" in TITULOS_DATA[t])
         def_eq = 0
         if self.casco: def_eq += getattr(self.casco, 'defensa_magica', 0)
         if self.pechera: def_eq += getattr(self.pechera, 'defensa_magica', 0)
@@ -324,11 +324,12 @@ class Personaje:
 
     @property
     def max_vida(self):
-        bono = TITULOS_DATA[self.titulo_actual]["bono"].get("max_vida", 0)
+        bono = sum(TITULOS_DATA[t]["bono"].get("max_vida", 0) for t in self.titulos_activos if t in TITULOS_DATA and "bono" in TITULOS_DATA[t])
         bono_acc = self.accesorio.bono_stats.get("max_vida", 0) if self.accesorio else 0
         bono += bono_acc
         # Añadir bonos pasivos de títulos EQUIPADOS (como los de Arquero/Halcón)
-        bono_pasivo_extra = TITULOS_DATA[self.titulo_actual].get("bono_pasivo_oculto", {})
+        bono_pasivo_extra = sum((TITULOS_DATA[t].get("bono_pasivo_oculto", {}).get("max_vida", 0) for t in self.titulos_activos if t in TITULOS_DATA), 0)
+        # Fix since we just summed it
         # ... podrías aplicar otros aquí ...
         
         # Añadir bonos pasivos reales (líneas de Esquiva/Aliento/Regen)
@@ -340,7 +341,7 @@ class Personaje:
         
     @property
     def max_mana(self):
-        bono = TITULOS_DATA[self.titulo_actual]["bono"].get("max_mana", 0)
+        bono = sum(TITULOS_DATA[t]["bono"].get("max_mana", 0) for t in self.titulos_activos if t in TITULOS_DATA and "bono" in TITULOS_DATA[t])
         bono_acc = self.accesorio.bono_stats.get("max_mana", 0) if self.accesorio else 0
         return self.max_mana_base + bono + bono_acc
 
@@ -375,7 +376,7 @@ class Personaje:
         prob_esquiva += self.get_bono_pasivo("esquiva_general")
         
         # Bono especial si el título EQUIPADO tiene esquiva extra (ej: Arquero/Halcón)
-        bono_equipado = TITULOS_DATA[self.titulo_actual].get("bono_pasivo_oculto", {}).get("esquiva_basica", 0)
+        bono_equipado = sum(TITULOS_DATA[t].get("bono_pasivo_oculto", {}).get("esquiva_basica", 0) for t in self.titulos_activos if t in TITULOS_DATA)
         if tipo == "fisico" or tipo == "distancia":
             prob_esquiva += bono_equipado
         
@@ -397,6 +398,19 @@ class Personaje:
 
         # Si no esquivó, aplicar daño
         self.vida -= dmg
+        
+        # Reducir durabilidad
+        for slot_name in ["casco", "pechera", "botas", "accesorio"]:
+            item = getattr(self, slot_name, None)
+            if item and hasattr(item, "durabilidad"):
+                item.durabilidad -= 1
+                if item.durabilidad <= 0:
+                    setattr(self, slot_name, None)
+                    if log:
+                        log.add_message(f"[SISTEMA] Tu {item.nombre} se ha roto!")
+                    if hasattr(self, 'game') and hasattr(self.game, 'play_sfx'):
+                        # maybe a break sound
+                        pass
         if self.vida < 0: self.vida = 0
         
         # Registrar golpe recibido a baja vida
@@ -449,8 +463,9 @@ class Personaje:
         if tipo == "magico":
             self.acciones["usos_magia"] += 1
             ataque_total = self.magia
-            titulo_data = TITULOS_DATA[self.titulo_actual]
-            ataque_total += titulo_data.get("bono", {}).get("daño_magico", 0)
+            for t in getattr(self, "titulos_activos", []):
+                if t in TITULOS_DATA:
+                    ataque_total += TITULOS_DATA[t].get("bono", {}).get("daño_magico", 0)
             
             defensa_oponente = oponente.defensa_magica if hasattr(oponente, 'defensa_magica') else 0
             if ataque_total <= defensa_oponente:
@@ -462,14 +477,14 @@ class Personaje:
         else:
             ataque_total = self.fuerza
             
-        # Aplicar bonos planos del título equipado
-        titulo_data = TITULOS_DATA[self.titulo_actual]
-        bonos = titulo_data.get("bono", {})
-        
-        if tipo == "fisico" or tipo == "habilidad":
-            ataque_total += bonos.get("daño_melee", 0)
-        elif tipo == "distancia":
-            ataque_total += bonos.get("daño_distancia", 0)
+        # Aplicar bonos planos de todos los títulos equipados
+        for t in getattr(self, "titulos_activos", []):
+            if t in TITULOS_DATA:
+                bonos = TITULOS_DATA[t].get("bono", {})
+                if tipo == "fisico" or tipo == "habilidad":
+                    ataque_total += bonos.get("daño_melee", 0)
+                elif tipo == "distancia":
+                    ataque_total += bonos.get("daño_distancia", 0)
             
         defensa_oponente = oponente.defensa
         if ataque_total <= defensa_oponente:
@@ -487,17 +502,21 @@ class Personaje:
             # Por defecto usar el tipo del arma si existe
             tipo_daño = self.arma.tipo_daño if self.arma else "fisico"
             
-            if self.titulo_actual != "Hoja en Blanco":
-                if "Espada" in self.titulo_actual or "Hoja" in self.titulo_actual:
-                    tipo_daño = "habilidad"
-                elif "Proyectil" in self.titulo_actual or "Arquero" in self.titulo_actual or "Halcón" in self.titulo_actual:
+            for t in getattr(self, "titulos_activos", []):
+                if "Espada" in t or "Hoja" in t:
+                    tipo_daño = "habilidad" # Convertir ataques básicos en ataques de clase
+                elif "Proyectil" in t or "Arquero" in t or "Halcón" in t:
                     tipo_daño = "distancia"
             
         # Registrar acción para evolución
         if tipo_daño == "distancia":
             self.acciones["usos_proyectil"] += 1
-        elif tipo_daño == "habilidad":
+        elif tipo_daño in ["fisico", "contundente"]:
             self.acciones["usos_espada"] += 1
+            
+        if self.arma and "espada" in self.arma.nombre.lower():
+            # Extra check in case we want to be strict, but any melee attack counts towards the warrior path.
+            pass
         
         dmg = self.daño(oponente, tipo=tipo_daño)
         if oponente.recibir_daño(dmg, tipo=tipo_daño):
@@ -548,7 +567,11 @@ class Personaje:
 
     def cambiar_titulo(self, nuevo_titulo):
         if nuevo_titulo in self.titulos_desbloqueados:
-            self.titulo_actual = nuevo_titulo
+            if nuevo_titulo in self.titulos_activos:
+                if len(self.titulos_activos) > 0:
+                    self.titulos_activos.remove(nuevo_titulo)
+            else:
+                self.titulos_activos.append(nuevo_titulo)
             return True
         return False
 
@@ -693,7 +716,7 @@ class Personaje:
             "accesorio": self.accesorio.to_dict() if self.accesorio else None,
             "arma": self.arma.to_dict() if self.arma else None,
             "baul": baul_serialized,
-            "titulo_actual": self.titulo_actual,
+            "titulos_activos": self.titulos_activos,
             "titulos_desbloqueados": self.titulos_desbloqueados,
             "acciones": self.acciones,
             "cooldowns": self.cooldowns
@@ -723,7 +746,7 @@ class Personaje:
         self.banco_cobre = data["banco_cobre"]
         self.defensa_magica_base = data.get("defensa_magica_base", 0)
         
-        self.titulo_actual = data.get("titulo_actual", "Hoja en Blanco")
+        self.titulos_activos = data.get("titulos_activos", ["Hoja en Blanco"])
         self.titulos_desbloqueados = data.get("titulos_desbloqueados", ["Hoja en Blanco"])
         self.acciones = data.get("acciones", self.acciones)
         
