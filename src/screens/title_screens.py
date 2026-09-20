@@ -1,13 +1,3 @@
-"""
-
-screens/title_screens.py
-
-Pantallas de la UI relacionadas al titulo, carga de partidas,
-
-selección de dificultad y opciones.
-
-"""
-
 import pygame
 
 import random

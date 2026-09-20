@@ -1,8 +1,4 @@
-﻿"""
-events/events_title.py
-Manejo de eventos de las pantallas de titulo, carga y opciones.
-"""
-import pygame
+﻿import pygame
 from logic.save_manager import SaveManager
 import os
 import sys

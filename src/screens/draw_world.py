@@ -1,8 +1,3 @@
-"""
-screens/draw_world.py
-Funciones relacionadas con el renderizado básico del mapa, grid,
-escalado de pantalla y HUD de volumen.
-"""
 import pygame
 import random
 from settings import WIDTH, HEIGHT, TILESIZE, MAP_WIDTH, BLACK, DARK_GREY, LIGHT_GREY, YELLOW, CYAN, WHITE

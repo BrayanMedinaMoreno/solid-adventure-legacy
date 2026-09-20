@@ -459,8 +459,10 @@ class Game:
                 offset_pos = (sprite.rect.x - cam_x, sprite.rect.y - cam_y)
                 self.virtual_surface.blit(sprite.image, offset_pos)
 
-        self.floating_texts.draw(self.virtual_surface) # Estos pueden ser relativos a pantalla o mapa, asumo mapa
-        # Re-ajustar floating texts si es necesario (asumo que se quedan donde nacieron en el mapa)
+        # Dibujar floating texts con offset de cámara y panel
+        for ft in self.floating_texts:
+            ft_pos = (ft.rect.x - cam_x, ft.rect.y - cam_y)
+            self.virtual_surface.blit(ft.image, ft_pos)
         
         for enemy in self.enemies:
             if enemy.rect.colliderect(screen_rect):
@@ -487,7 +489,9 @@ class Game:
         self.virtual_surface.set_clip(None)
 
         # Separador UI
-        pygame.draw.line(self.virtual_surface, WHITE, (MAP_WIDTH, 0), (MAP_WIDTH, HEIGHT), 2)
+        from settings import WIDTH, UI_WIDTH
+        
+        pygame.draw.line(self.virtual_surface, WHITE, (WIDTH - UI_WIDTH, 0), (WIDTH - UI_WIDTH, HEIGHT), 2)
         
         # UI
         self.panel.draw(self.virtual_surface)

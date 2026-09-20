@@ -1,4 +1,3 @@
-# src/entities/trap.py
 import pygame
 import random
 from settings import *

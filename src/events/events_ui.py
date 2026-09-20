@@ -1,8 +1,4 @@
-﻿"""
-events/events_ui.py
-Manejo de eventos de las interfaces (Inventario, Banco, Tienda, etc.)
-"""
-import pygame
+﻿import pygame
 import random
 import os
 import copy

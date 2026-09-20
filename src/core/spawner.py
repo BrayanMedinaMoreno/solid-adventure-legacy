@@ -1,8 +1,4 @@
-﻿"""
-core/spawner.py
-Genera enemigos, cofres, trampas y NPCs del pueblo en el mapa segun la profundidad.
-"""
-import random
+﻿import random
 from entities.enemy_types import Goblin, Orco, Slime, SlimeBoss, SlimeMutante, SlimeRosa, SlimeArcano
 from items.chest import Chest
 from entities.trap import Trap
@@ -63,12 +59,12 @@ def _spawn_dungeon(game, occupied_tiles):
                 
                 # NO DROPEA NADA (Prob 0.0)
                 enemy.loot_extra.append((acc, 0.0))
+                enemy.titulo = "Guardia Real"
                 enemy.name = "Goblin Campeón (Guardia)"
                 enemy.xp_recompensa += 30
             else:
                 enemy = SlimeArcano(game, tile[0], tile[1])
-                enemy.titulo = "Soberano de la Viscosidad"
-                enemy.last_stand_used = False
+                enemy.titulo = "Acolito de la Viscosidad"
                 enemy.name = "Slime Arcano (Élite)"
                 enemy.max_vida += 50
                 enemy.vida = enemy.max_vida
@@ -92,6 +88,8 @@ def _spawn_dungeon(game, occupied_tiles):
                 tipo_enemigo = random.choice([Goblin, Orco, Orco, SlimeArcano, SlimeRosa, SlimeRosa])
 
             enemy = tipo_enemigo(game, tile[0], tile[1])
+            if profundidad <= 4 and random.random() < 0.15: # 15% prob
+                enemy.titulo = "El Arquitecto de la mazmorra"
             enemy.max_vida += profundidad * 20
             enemy.vida = enemy.max_vida
             enemy.fuerza += profundidad * 5

@@ -1,15 +1,14 @@
-﻿"""
-screens/game_screens.py
-Pantallas de la UI durante la partida: inventario, tiendas, combates, banco, cofres.
-"""
-import pygame
+﻿import pygame
 from settings import MAP_WIDTH, HEIGHT, WIDTH, WHITE, CYAN, YELLOW, GREEN, RED, LIGHT_GREY, DARK_GREY, BLACK
 from logic.armas import Arma
 from logic.armaduras import Armadura
 
 def draw_combat_menu(game):
     import core.combat as combat
-    menu_rect = pygame.Rect(MAP_WIDTH // 2 - 120, HEIGHT // 2 + 80, 240, 180)
+    from settings import UI_WIDTH
+    # Centrar el menú entre el panel izquierdo (enemigo) y derecho (jugador)
+    center_x = UI_WIDTH + (MAP_WIDTH - UI_WIDTH) // 2
+    menu_rect = pygame.Rect(center_x - 120, HEIGHT // 2 + 80, 240, 180)
     pygame.draw.rect(game.virtual_surface, (20, 20, 20), menu_rect)
     pygame.draw.rect(game.virtual_surface, WHITE, menu_rect, 2)
     
@@ -29,46 +28,95 @@ def draw_enemy_info_box(game):
         return
         
     enemy = game.current_enemy
-    w, h = 400, 160
-    box_rect = pygame.Rect(MAP_WIDTH // 2 - w // 2, HEIGHT // 2 - 140, w, h)
+    from settings import UI_WIDTH
     
-    pygame.draw.rect(game.virtual_surface, (25, 15, 15), box_rect)
-    pygame.draw.rect(game.virtual_surface, RED, box_rect, 2)
+    # Dibujar panel a la izquierda de la pantalla
+    panel_rect = pygame.Rect(0, 0, UI_WIDTH, HEIGHT)
+    pygame.draw.rect(game.virtual_surface, (15, 10, 10), panel_rect)
+    pygame.draw.rect(game.virtual_surface, RED, panel_rect, 2)
     
-    title_font = pygame.font.SysFont('Consolas', 14, bold=True)
-    game.virtual_surface.blit(title_font.render("ENEMIGO EN COMBATE", True, RED), (box_rect.x + 10, box_rect.y + 8))
+    start_x = 20
+    y = 20
     
-    if hasattr(enemy, 'image') and enemy.image:
-        enemy_img = pygame.transform.scale(enemy.image, (64, 64))
-        game.virtual_surface.blit(enemy_img, (box_rect.x + 20, box_rect.y + 45))
-    
+    title_font = pygame.font.SysFont('Consolas', 24, bold=True)
     font = pygame.font.SysFont('Consolas', 18)
-    bold_font = pygame.font.SysFont('Consolas', 18, bold=True)
     small_font = pygame.font.SysFont('Consolas', 14)
     
-    game.virtual_surface.blit(bold_font.render(enemy.name, True, YELLOW), (box_rect.x + 100, box_rect.y + 25))
-    if hasattr(enemy, 'titulo') and enemy.titulo:
-        game.virtual_surface.blit(small_font.render(f"<{enemy.titulo}>", True, (0, 255, 255)), (box_rect.x + 100, box_rect.y + 42))
+    # Nombre y Nivel/Tipo
+    game.virtual_surface.blit(title_font.render(enemy.name, True, RED), (start_x, y))
+    y += 30
     
-    bar_x = box_rect.x + 100
-    bar_y = box_rect.y + 60
-    bar_w = 280
-    bar_h = 14
-    pygame.draw.rect(game.virtual_surface, DARK_GREY, (bar_x, bar_y, bar_w, bar_h))
+    if hasattr(enemy, 'titulo') and enemy.titulo:
+        game.virtual_surface.blit(font.render(f"<{enemy.titulo}>", True, CYAN), (start_x, y))
+        y += 25
+        # Descripcion
+        from logic.titulos_enemigos import TITULOS_ENEMIGOS
+        desc = TITULOS_ENEMIGOS.get(enemy.titulo, {}).get("descripcion", "")
+        if desc:
+            words = desc.split(' ')
+            line = ""
+            for word in words:
+                if len(line) + len(word) < 30:
+                    line += word + " "
+                else:
+                    game.virtual_surface.blit(small_font.render(line.strip(), True, (200, 200, 200)), (start_x, y))
+                    y += 15
+                    line = word + " "
+            if line:
+                game.virtual_surface.blit(small_font.render(line.strip(), True, (200, 200, 200)), (start_x, y))
+                y += 15
+    y += 10
+    
+    # Imagen
+    if hasattr(enemy, 'image') and enemy.image:
+        enemy_img = pygame.transform.scale(enemy.image, (64, 64))
+        game.virtual_surface.blit(enemy_img, (start_x, y))
+    y += 80
+    
+    # HP Bar
+    bar_w = UI_WIDTH - 40
+    bar_h = 15
+    pygame.draw.rect(game.virtual_surface, DARK_GREY, (start_x, y, bar_w, bar_h))
     fill = (enemy.vida / enemy.max_vida) * bar_w
-    pygame.draw.rect(game.virtual_surface, RED, (bar_x, bar_y, fill, bar_h))
-    pygame.draw.rect(game.virtual_surface, WHITE, (bar_x, bar_y, bar_w, bar_h), 1)
+    pygame.draw.rect(game.virtual_surface, RED, (start_x, y, fill, bar_h))
+    pygame.draw.rect(game.virtual_surface, WHITE, (start_x, y, bar_w, bar_h), 1)
     
     hp_text = f"HP: {enemy.vida}/{enemy.max_vida}"
     hp_surface = small_font.render(hp_text, True, WHITE)
-    game.virtual_surface.blit(hp_surface, (bar_x + bar_w // 2 - hp_surface.get_width() // 2, bar_y - 1))
+    game.virtual_surface.blit(hp_surface, (start_x + bar_w // 2 - hp_surface.get_width() // 2, y - 1))
+    y += 30
     
-    stats_y = box_rect.y + 85
-    game.virtual_surface.blit(small_font.render(f"Fuerza (ATK): {enemy.fuerza}", True, LIGHT_GREY), (box_rect.x + 100, stats_y))
-    game.virtual_surface.blit(small_font.render(f"Defensa (DEF): {enemy.defensa}", True, LIGHT_GREY), (box_rect.x + 100, stats_y + 18))
-    game.virtual_surface.blit(small_font.render(f"Def. Mag. (MAG): {getattr(enemy, 'defensa_magica', 0)}", True, LIGHT_GREY), (box_rect.x + 100, stats_y + 36))
+    # Stats
+    game.virtual_surface.blit(font.render(f"ATK: {enemy.fuerza}", True, (255, 150, 50)), (start_x, y))
+    y += 25
+    game.virtual_surface.blit(font.render(f"DEF: {enemy.defensa}", True, (100, 150, 255)), (start_x, y))
+    y += 25
+    game.virtual_surface.blit(font.render(f"MAG: {getattr(enemy, 'defensa_magica', 0)}", True, (180, 100, 255)), (start_x, y))
+    y += 35
     
-    game.virtual_surface.blit(small_font.render(f"Recompensa: +{enemy.xp_recompensa} XP", True, CYAN), (box_rect.x + 250, stats_y))
+    # Recompensa
+    game.virtual_surface.blit(font.render("RECOMPENSA", True, YELLOW), (start_x, y))
+    y += 25
+    game.virtual_surface.blit(font.render(f"+ {enemy.xp_recompensa} XP", True, CYAN), (start_x, y))
+    y += 30
+    
+    # Equipamiento
+    game.virtual_surface.blit(font.render("EQUIPAMIENTO", True, YELLOW), (start_x, y))
+    y += 25
+    
+    equipado = []
+    if hasattr(enemy, 'loot_extra'):
+        for loot in enemy.loot_extra:
+            item = loot[0] if isinstance(loot, tuple) else loot
+            if hasattr(item, 'nombre'):
+                equipado.append(item.nombre)
+                
+    if equipado:
+        for eq in equipado:
+            game.virtual_surface.blit(small_font.render(f"- {eq}", True, LIGHT_GREY), (start_x, y))
+            y += 20
+    else:
+        game.virtual_surface.blit(small_font.render("- Sin equipo", True, LIGHT_GREY), (start_x, y))
 
 
 def draw_inventory_menu(game):

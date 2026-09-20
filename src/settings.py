@@ -1,7 +1,5 @@
-# src/settings.py
-
 # Dimensiones de la pantalla
-WIDTH = 1024
+WIDTH = 1366
 HEIGHT = 768
 
 # Tamaño del Grid / Tiles

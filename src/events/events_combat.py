@@ -1,8 +1,4 @@
-﻿"""
-events/events_combat.py
-Manejo de eventos de combate.
-"""
-import pygame
+﻿import pygame
 import core.combat as combat
 
 def handle(game, event):

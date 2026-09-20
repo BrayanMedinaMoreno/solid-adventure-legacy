@@ -1,8 +1,4 @@
-﻿"""
-screens/help_screen.py
-Pantalla del manual de aventuras y guía de combate.
-"""
-import pygame
+﻿import pygame
 from settings import WIDTH, HEIGHT, YELLOW, CYAN, LIGHT_GREY, WHITE, RED, GREEN
 
 def draw_help_screen(game):

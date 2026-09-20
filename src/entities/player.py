@@ -10,15 +10,30 @@ class Player(pygame.sprite.Sprite):
         pygame.sprite.Sprite.__init__(self, self.groups)
         self.game = game
         
-        # Cargar y escalar imagen
+        # Cargar animaciones del personaje principal
+        self.animations = {'ABAJO': [], 'ARRIBA': [], 'DERECHA': [], 'IZQUIERDA': []}
+        self.facing = 'ABAJO'
+        self.frame_index = 0.0
+        self.is_moving = False
+        
         try:
-            self.image = pygame.image.load('assets/sprites/player.png').convert_alpha()
-            self.image = pygame.transform.scale(self.image, (TILESIZE, TILESIZE))
-        except FileNotFoundError:
-            # Fallback si no encuentra la imagen
+            import os
+            base_path = r'assets/sprites/Personajes/Personaje_Principal/'
+            for dir_name in self.animations.keys():
+                path = os.path.join(base_path, f'{dir_name}_GIF-Sheet.png')
+                sheet = pygame.image.load(path).convert_alpha()
+                # 4 frames de 32x32
+                for i in range(4):
+                    frame_surf = pygame.Surface((32, 32), pygame.SRCALPHA)
+                    frame_surf.blit(sheet, (0, 0), (i * 32, 0, 32, 32))
+                    frame_surf = pygame.transform.scale(frame_surf, (TILESIZE, TILESIZE))
+                    self.animations[dir_name].append(frame_surf)
+            self.image = self.animations[self.facing][0]
+        except Exception as e:
+            # Fallback
             self.image = pygame.Surface((TILESIZE, TILESIZE), pygame.SRCALPHA)
-            color = CYAN if clase_elegida == "tirador" else BLUE
-            pygame.draw.circle(self.image, color, (TILESIZE//2, TILESIZE//2), TILESIZE//2 - 4)
+            pygame.draw.circle(self.image, BLUE, (TILESIZE//2, TILESIZE//2), TILESIZE//2 - 4)
+            self.animations = None
 
         self.rect = self.image.get_rect()
         self.x = x
@@ -59,6 +74,11 @@ class Player(pygame.sprite.Sprite):
         # Comprobar si el destino es suelo o pared
         dest_x = self.x + dx
         dest_y = self.y + dy
+        
+        if dx > 0: self.facing = 'DERECHA'
+        elif dx < 0: self.facing = 'IZQUIERDA'
+        elif dy > 0: self.facing = 'ABAJO'
+        elif dy < 0: self.facing = 'ARRIBA'
         
         if 0 <= dest_x < self.game.level.width_tiles and 0 <= dest_y < self.game.level.height_tiles:
             if self.game.level.map_data[dest_y][dest_x] == 0:
@@ -144,15 +164,31 @@ class Player(pygame.sprite.Sprite):
         # Velocidad de interpolación (aprox 0.1 segundos por casilla)
         speed = 300 * self.game.dt
         
+        self.is_moving = False
+        
         if self.exact_x < target_x:
             self.exact_x = min(target_x, self.exact_x + speed)
+            self.is_moving = True
         elif self.exact_x > target_x:
             self.exact_x = max(target_x, self.exact_x - speed)
+            self.is_moving = True
             
         if self.exact_y < target_y:
             self.exact_y = min(target_y, self.exact_y + speed)
+            self.is_moving = True
         elif self.exact_y > target_y:
             self.exact_y = max(target_y, self.exact_y - speed)
+            self.is_moving = True
             
         self.rect.x = int(self.exact_x)
         self.rect.y = int(self.exact_y)
+        
+        # Actualizar animación
+        if self.animations:
+            if self.is_moving:
+                self.frame_index += 10 * self.game.dt
+                if self.frame_index >= 4:
+                    self.frame_index = 0
+            else:
+                self.frame_index = 0
+            self.image = self.animations[self.facing][int(self.frame_index)]

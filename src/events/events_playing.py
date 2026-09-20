@@ -1,8 +1,4 @@
-﻿"""
-events/events_playing.py
-Manejo de eventos del estado PLAYING.
-"""
-import pygame
+﻿import pygame
 
 def handle(game, event):
     if event.key == pygame.K_ESCAPE:

@@ -1,4 +1,3 @@
-# src/ui/panel.py
 import pygame
 from settings import *
 
@@ -38,9 +37,10 @@ class Panel:
 
     def draw(self, surface):
         # Dibujar fondo oscuro para el panel de la derecha
-        pygame.draw.rect(surface, (10, 10, 15), (MAP_WIDTH, 0, UI_WIDTH, HEIGHT))
+        right_panel_x = WIDTH - UI_WIDTH
+        pygame.draw.rect(surface, (10, 10, 15), (right_panel_x, 0, UI_WIDTH, HEIGHT))
         player = self.game.player
-        start_x = MAP_WIDTH + 20
+        start_x = right_panel_x + 20
         y = 20
 
         # Ubicación (Piso actual)
@@ -48,8 +48,8 @@ class Panel:
         loc_color = GREEN if self.game.profundidad == 0 else (255, 100, 100)
         
         # Recuadro de ubicación
-        pygame.draw.rect(surface, (25, 25, 35), (MAP_WIDTH + 10, y - 10, UI_WIDTH - 20, 40))
-        pygame.draw.rect(surface, loc_color, (MAP_WIDTH + 10, y - 10, UI_WIDTH - 20, 40), 1)
+        pygame.draw.rect(surface, (25, 25, 35), (right_panel_x + 10, y - 10, UI_WIDTH - 20, 40))
+        pygame.draw.rect(surface, loc_color, (right_panel_x + 10, y - 10, UI_WIDTH - 20, 40), 1)
         self.draw_text(surface, loc_text, start_x + 10, y, self.title_font, loc_color)
         y += 60
 

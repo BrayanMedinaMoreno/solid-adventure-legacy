@@ -1,4 +1,3 @@
-# src/ui/log.py
 import pygame
 from settings import *
 

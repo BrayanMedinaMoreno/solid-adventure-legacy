@@ -1,4 +1,3 @@
-# src/ui/minimap.py
 import pygame
 from settings import *
 

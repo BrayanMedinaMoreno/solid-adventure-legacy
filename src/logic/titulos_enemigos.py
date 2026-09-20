@@ -32,14 +32,55 @@ def slime_boss_act(enemy):
         enemy.game.log.add_message(f"[TITULO: {enemy.titulo}] Absorbe esencia (+50% HP)")
         enemy.game.spawn_floating_text(f"+{curacion}", enemy.rect.centerx, enemy.rect.top, GREEN)
 
+
+def acolito_recibir_dano(enemy, dmg, tipo="fisico"):
+    # Recibe la mitad del daño
+    dano_real = max(1, dmg // 2)
+    enemy.vida -= dano_real
+    if enemy.vida < 0: enemy.vida = 0
+    return True
+
+def guardia_spawn(enemy):
+    enemy.max_vida *= 2
+    enemy.vida = enemy.max_vida
+    enemy.fuerza = int(enemy.fuerza * 1.2)
+
+def arquitecto_act(enemy):
+    import random
+    buff_turns = getattr(enemy, 'arquitecto_buff', 0)
+    if buff_turns == 0:
+        if random.random() < 0.25: # 25% prob
+            enemy.defensa += 5
+            enemy.arquitecto_buff = 3
+            enemy.game.log.add_message(f"[TITULO: {enemy.titulo}] Muros de piedra (+5 DEF)")
+            enemy.game.spawn_floating_text("+DEFENSA", enemy.rect.centerx, enemy.rect.top, (150, 150, 150))
+    else:
+        enemy.arquitecto_buff -= 1
+        if enemy.arquitecto_buff <= 0:
+            enemy.defensa -= 5
+            enemy.arquitecto_buff = 0
+            enemy.game.log.add_message(f"[TITULO: {enemy.titulo}] El muro cae (-5 DEF)")
+
 TITULOS_ENEMIGOS = {
     "Soberano de la Viscosidad": {
         "descripcion": "El Rey de todos los slimes. Posee regeneración y esquiva.",
         "on_recibir_daño": slime_boss_recibir_daño,
         "on_turno": slime_boss_act
     },
+    "Acolito de la Viscosidad": {
+        "descripcion": "Sirviente leal del Rey. Mitiga el 50% de todo el daño recibido.",
+        "on_recibir_daño": acolito_recibir_dano
+    },
+    "Guardia Real": {
+        "descripcion": "Protector élite del Rey. Tiene vida duplicada y daño aumentado.",
+        "on_spawn": guardia_spawn
+    },
     "Cazador Nocturno": {
         "descripcion": "Aumenta la fuerza en la oscuridad.",
         "on_spawn": lambda enemy: setattr(enemy, 'fuerza', enemy.fuerza + 5)
+    },
+    "El Arquitecto de la mazmorra": {
+        "descripcion": "Probabilidad del 25% de alzar un muro que otorga +5 de Defensa por 3 turnos.",
+        "on_turno": arquitecto_act
     }
 }

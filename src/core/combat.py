@@ -1,9 +1,4 @@
-﻿"""
-core/combat.py
-Lógica de combate por turnos: inicio de combate, resolución de acciones del jugador
-y del enemigo, uso de ítems y texto flotante.
-"""
-import random
+﻿import random
 from settings import WHITE, RED, GREEN, YELLOW, BLUE
 from ui.floating_text import FloatingText
 from logic.armas import Arma
