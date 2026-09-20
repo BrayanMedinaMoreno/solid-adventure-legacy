@@ -26,7 +26,7 @@ class Player(pygame.sprite.Sprite):
                 for i in range(4):
                     frame_surf = pygame.Surface((32, 32), pygame.SRCALPHA)
                     frame_surf.blit(sheet, (0, 0), (i * 32, 0, 32, 32))
-                    frame_surf = pygame.transform.scale(frame_surf, (TILESIZE, TILESIZE))
+                    frame_surf = pygame.transform.scale(frame_surf, (64, 64))
                     self.animations[dir_name].append(frame_surf)
             self.image = self.animations[self.facing][0]
         except Exception as e:
@@ -42,6 +42,8 @@ class Player(pygame.sprite.Sprite):
         self.rect.y = y * TILESIZE
         self.exact_x = float(self.rect.x)
         self.exact_y = float(self.rect.y)
+        self.draw_offset_x = (TILESIZE - 64) // 2
+        self.draw_offset_y = TILESIZE - 64
 
         # Integración con la lógica
         if logic:

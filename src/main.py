@@ -456,7 +456,9 @@ class Game:
                     else:
                         continue
                         
-                offset_pos = (sprite.rect.x - cam_x, sprite.rect.y - cam_y)
+                dx = getattr(sprite, 'draw_offset_x', 0)
+                dy = getattr(sprite, 'draw_offset_y', 0)
+                offset_pos = (sprite.rect.x - cam_x + dx, sprite.rect.y - cam_y + dy)
                 self.virtual_surface.blit(sprite.image, offset_pos)
 
         # Dibujar floating texts con offset de cámara y panel
