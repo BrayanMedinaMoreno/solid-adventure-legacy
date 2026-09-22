@@ -1,4 +1,8 @@
 # src/logic/personaje.py
+import random
+
+from random import random
+
 from settings import *
 from logic.armas import Arma
 
@@ -635,7 +639,10 @@ class Personaje:
     def daño(self, oponente, tipo="fisico"):
         if tipo == "magico":
             self.acciones["usos_magia"] += 1
-            ataque_total = self.magia
+            if self.arma:
+                ataque_total = self.arma.calcular_daño(self)
+            else:
+                ataque_total = self.magia
             for t in getattr(self, "titulos_activos", []):
                 if t in TITULOS_DATA:
                     ataque_total += (
@@ -663,6 +670,11 @@ class Personaje:
                 elif tipo == "distancia":
                     ataque_total += bonos.get("daño_distancia", 0)
 
+        crit_chance = self.arma.crit_chance if self.arma else 0.03
+        crit_mult = self.arma.crit_mult if self.arma else 1.5
+        es_critico = random.random() < crit_chance
+        if es_critico:
+            ataque_total = int(ataque_total * crit_mult)
         defensa_oponente = oponente.defensa
         if ataque_total <= defensa_oponente:
             return 0
