@@ -1,7 +1,6 @@
 # src/logic/personaje.py
+from logging import log
 import random
-
-from random import random
 
 from settings import *
 from logic.armas import Arma
@@ -636,7 +635,7 @@ class Personaje:
         if log:
             log.add_message(f"[SISTEMA] {self.nombre} ha caído en combate.")
 
-    def daño(self, oponente, tipo="fisico"):
+    def daño(self, oponente, tipo="fisico") -> tuple[int, bool]:
         if tipo == "magico":
             self.acciones["usos_magia"] += 1
             if self.arma:
@@ -652,9 +651,18 @@ class Personaje:
             defensa_oponente = (
                 oponente.defensa_magica if hasattr(oponente, "defensa_magica") else 0
             )
-            if ataque_total <= defensa_oponente:
-                return 0
-            return ataque_total - defensa_oponente
+            crit_chance = self.arma.crit_chance if self.arma else 0.03
+            crit_mult = self.arma.crit_mult if self.arma else 1.5
+            es_critico = random.random() < crit_chance
+
+            base_dmg = max(0, ataque_total - defensa_oponente)
+            if es_critico:
+                dmg = max(
+                    int(ataque_total * crit_mult) - defensa_oponente, base_dmg + 1
+                )
+            else:
+                dmg = base_dmg
+            return dmg, es_critico
 
         if self.arma:
             ataque_total = self.arma.calcular_daño(self)
@@ -673,12 +681,31 @@ class Personaje:
         crit_chance = self.arma.crit_chance if self.arma else 0.03
         crit_mult = self.arma.crit_mult if self.arma else 1.5
         es_critico = random.random() < crit_chance
-        if es_critico:
-            ataque_total = int(ataque_total * crit_mult)
         defensa_oponente = oponente.defensa
-        if ataque_total <= defensa_oponente:
-            return 0
-        return ataque_total - defensa_oponente
+        base_dmg = max(0, ataque_total - defensa_oponente)
+
+        if es_critico:
+            dmg = int(ataque_total * crit_mult) - defensa_oponente
+            dmg = max(dmg, base_dmg + 1)
+        else:
+            dmg = base_dmg
+
+        return dmg, es_critico
+
+    def _gastar_durabilidad_arma(self, log):
+        if not self.arma:
+            return
+        self.arma.durabilidad -= 1
+        if self.arma.durabilidad <= 0:
+            log.add_message(f"[SISTEMA] ¡Tu {self.arma.nombre} se ha roto!")
+            if self.game:
+                self.game.spawn_floating_text(
+                    "¡ARMA ROTA!",
+                    self.game.player.rect.centerx,
+                    self.game.player.rect.top - 20,
+                    RED,
+                )
+            self.arma = None
 
     def atacar(self, oponente, log, tipo_forzado=None):
         # Determinar tipo de daño basado en arma y título
@@ -703,37 +730,54 @@ class Personaje:
                 elif "Proyectil" in t or "Arquero" in t or "Halcón" in t:
                     tipo_daño = "distancia"
 
-        # Registrar acción para evolución
-        if tipo_daño == "distancia":
-            self.acciones["usos_proyectil"] += 1
-        elif tipo_daño in ["fisico", "contundente"]:
-            self.acciones["usos_espada"] += 1
-
-        if self.arma and "espada" in self.arma.nombre.lower():
-            # Extra check in case we want to be strict, but any melee attack counts towards the warrior path.
-            pass
-
-        dmg = self.daño(oponente, tipo=tipo_daño)
-        if oponente.recibir_daño(dmg, tipo=tipo_daño):
-            log.add_message(f"[{self.nombre}] {tipo_daño.upper()} -> {dmg} DMG")
+        prob_fallo = 0.05
+        if random.random() < prob_fallo:
+            log.add_message(f"[{self.nombre}] ¡FALLÓ EL ATAQUE!")
         else:
-            log.add_message(f"[{self.nombre}] ¡FALLÓ! ({tipo_daño})")
+            # Registrar acción para evolución
+            if tipo_daño == "distancia":
+                self.acciones["usos_proyectil"] += 1
+            elif tipo_daño in ["fisico", "contundente"]:
+                self.acciones["usos_espada"] += 1
 
-        if not oponente.vivo():
-            oponente.morir(log)
-            # Registrar muerte por tipo
-            tipo_enemigo = oponente.__class__.__name__.lower()
-            if f"muertes_{tipo_enemigo}" in self.acciones:
-                self.acciones[f"muertes_{tipo_enemigo}"] += 1
-            self.acciones["muertes_totales"] += 1
+            if self.arma and "espada" in self.arma.nombre.lower():
+                # Extra check in case we want to be strict, but any melee attack counts towards the warrior path.
+                pass
 
-            # Verificar nuevos títulos tras una acción importante
-            self.verificar_titulos(log)
-        if self.arma:
-            self.arma.durabilidad -= 1
-            if self.arma.durabilidad < 1:
-                log.add_message(f"[SISTEMA] Tu {self.arma.nombre} se ha roto!")
-                self.arma = None
+            dmg, es_critico = self.daño(oponente, tipo=tipo_daño)
+            if oponente.recibir_daño(dmg, tipo=tipo_daño):
+                if self.arma:
+                    self._gastar_durabilidad_arma(log)
+                if es_critico:
+                    log.add_message(
+                        f"[{self.nombre}] ¡CRÍTICO! ({tipo_daño}) - {dmg} de daño a {oponente.name}"
+                    )
+                    if self.game:
+                        self.game.spawn_floating_text(
+                            "¡CRÍTICO!",
+                            self.game.player.rect.centerx,
+                            self.game.player.rect.top - 20,
+                            YELLOW,
+                        )
+                else:
+                    log.add_message(
+                        f"[{self.nombre}] {tipo_daño} - {dmg} de daño a {oponente.name}"
+                    )
+            else:
+                log.add_message(
+                    f"[{self.nombre}] ¡ESQUIVADO POR EL ENEMIGO! ({tipo_daño})"
+                )
+
+            if not oponente.vivo():
+                oponente.morir(log)
+                # Registrar muerte por tipo
+                tipo_enemigo = oponente.__class__.__name__.lower()
+                if f"muertes_{tipo_enemigo}" in self.acciones:
+                    self.acciones[f"muertes_{tipo_enemigo}"] += 1
+                self.acciones["muertes_totales"] += 1
+
+                # Verificar nuevos títulos tras una acción importante
+                self.verificar_titulos(log)
 
     def verificar_titulos(self, log=None):
         nuevos = []

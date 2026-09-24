@@ -1,3 +1,6 @@
+PALABRAS_MAGICAS = ("varita", "báculo", "baculo", "cetro")
+
+
 class Arma:
     def __init__(
         self,
@@ -13,6 +16,8 @@ class Arma:
 
         n_lower = self.nombre.lower()
         self.stat_escalado = "fuerza"
+        if self.tipo_daño == "magico" or any(p in n_lower for p in PALABRAS_MAGICAS):
+            self.stat_escalado = "magia"
         if (
             "hacha" in n_lower
             or "oxidada" in n_lower
@@ -22,17 +27,17 @@ class Arma:
             or "espada" in n_lower
         ):
             self.stat_escalado = "fuerza"
-        elif "varita" in n_lower:
-            self.stat_escalado = "magia"
 
         self.coef_escalado = 1.1
         n_lower = self.nombre.lower()
 
-        if "oxidada" in n_lower or "mazo" in n_lower or "martillo" in n_lower:
+        if any(p in n_lower for p in ("mazo", "martillo")):
             self.crit_chance = 0.08
-        elif "hacha" in n_lower or "espada" in n_lower:
-            self.crit_chance = 0.1
-        elif "varita" in n_lower:
+        elif "oxidada" in n_lower:
+            self.crit_chance = 0.08
+        elif any(p in n_lower for p in ("hacha", "espada")):
+            self.crit_chance = 0.10
+        elif any(p in n_lower for p in PALABRAS_MAGICAS):
             self.crit_chance = 0.09
         else:
             self.crit_chance = 0.05
@@ -49,7 +54,7 @@ class Arma:
         elif self.tipo_daño == "magico":
             tipo_str = "[MAGICO]"
         else:
-            tipo_str = "[DISTANCIA]" if tipo_daño == "fisico" else "[DISTANCIA]"
+            tipo_str = "[DISTANCIA]"
 
         self.descripcion = f"{tipo_str} Un arma de ataque. Daño base: {daño}."
 
