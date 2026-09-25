@@ -625,7 +625,7 @@ def handle(game, event):
                 else:
                     costo = 100 + arma.durabilidad_max  # ajustable
                     if l.gastar_monedas(costo):
-                        arma.mejorar_durabilidad(25)
+                        arma.mejorar_durabilidad(15)
                         arma.mejoras_realizadas_durabilidad += 1
                         game.play_sfx("coins")
                         game.log.add_message(f"[HERRERO] Durabilidad mejorada (+25).")

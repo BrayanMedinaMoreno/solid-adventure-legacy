@@ -983,19 +983,45 @@ def draw_cross_menu(game):
 
 
 def _draw_herrero_lista(game):
-    w, h = 520, 480
+    w, h = 700, 500
     rect = pygame.Rect(MAP_WIDTH // 2 - w // 2, HEIGHT // 2 - h // 2, w, h)
     pygame.draw.rect(game.virtual_surface, (20, 15, 10), rect)
     pygame.draw.rect(game.virtual_surface, (200, 100, 50), rect, 2)
-    font = pygame.font.SysFont("Consolas", 18)
-    title = pygame.font.SysFont("Consolas", 22, bold=True)
+
+    title_font = pygame.font.SysFont("Consolas", 22, bold=True)
+    header_font = pygame.font.SysFont("Consolas", 15, bold=True)
+    font = pygame.font.SysFont("Consolas", 16)
+
+    title_surf = title_font.render("HERRERO - SELECCIONA UN ARMA", True, (255, 180, 80))
+    game.virtual_surface.blit(title_surf, (rect.x + 20, rect.y + 15))
+
+    # --- Encabezado de columnas ---
+    header_y = rect.y + 55
     game.virtual_surface.blit(
-        title.render("HERRERO - SELECCIONA UN ARMA", True, (255, 180, 80)),
-        (rect.x + 20, rect.y + 15),
+        header_font.render("Nombre", True, LIGHT_GREY), (rect.x + 20, header_y)
+    )
+    game.virtual_surface.blit(
+        header_font.render("Daño", True, LIGHT_GREY), (rect.x + 380, header_y)
+    )
+    game.virtual_surface.blit(
+        header_font.render("Durabilidad", True, LIGHT_GREY), (rect.x + 460, header_y)
+    )
+    game.virtual_surface.blit(
+        header_font.render("Mejoras (D/U)", True, LIGHT_GREY), (rect.x + 570, header_y)
+    )
+    pygame.draw.line(
+        game.virtual_surface,
+        (100, 80, 60),
+        (rect.x + 20, header_y + 22),
+        (rect.right - 20, header_y + 22),
+        1,
     )
 
     armas = getattr(game, "herrero_armas", [])
-    max_visible = (h - 100) // 32
+    row_h = 30
+    list_top = header_y + 30
+    max_visible = (rect.bottom - 60 - list_top) // row_h
+
     if not hasattr(game, "herrero_scroll"):
         game.herrero_scroll = 0
     if game.menu_index < game.herrero_scroll:
@@ -1003,32 +1029,69 @@ def _draw_herrero_lista(game):
     elif game.menu_index >= game.herrero_scroll + max_visible:
         game.herrero_scroll = game.menu_index - max_visible + 1
 
+    # --- Filas de armas ---
     for i in range(
         game.herrero_scroll, min(len(armas), game.herrero_scroll + max_visible)
     ):
         arma, origen = armas[i]
+        y = list_top + (i - game.herrero_scroll) * row_h
+
         color = (255, 180, 80) if i == game.menu_index else WHITE
         prefix = "> " if i == game.menu_index else "  "
-        tag = "[E]" if origen == "equipada" else "   "
-        dur = f"{arma.durabilidad}/{arma.durabilidad_max}"
-        mej = f" +{arma.mejoras_realizadas}" if arma.mejoras_realizadas > 0 else ""
+        tag = "[E] " if origen == "equipada" else "[ ] "
+
+        # Truncar nombre largo con elipsis
+        nombre_corto = arma.nombre if len(arma.nombre) <= 30 else arma.nombre[:29] + "…"
         game.virtual_surface.blit(
-            font.render(f"{prefix}{tag} {arma.nombre} ({dur}){mej}", True, color),
-            (rect.x + 20, rect.y + 50 + (i - game.herrero_scroll) * 32),
-        )
-    exit_idx = len(armas)
-    if exit_idx >= game.herrero_scroll and exit_idx < game.herrero_scroll + max_visible:
-        color = CYAN if exit_idx == game.menu_index else WHITE
-        prefix = "> " if exit_idx == game.menu_index else "  "
-        draw_y = rect.y + 40 + (exit_idx - game.herrero_scroll) * 30
-        game.virtual_surface.blit(
-            font.render(prefix + "VOLVER / SALIR", True, color),
-            (rect.x + 20, draw_y),
+            font.render(f"{prefix}{tag}{nombre_corto}", True, color),
+            (rect.x + 20, y),
         )
 
-    # Description box
+        # Columna: daño
+        game.virtual_surface.blit(
+            font.render(str(arma.daño), True, color), (rect.x + 380, y)
+        )
+
+        # Columna: durabilidad (rojo si < 30%)
+        dur_pct = arma.durabilidad / max(1, arma.durabilidad_max)
+        dur_color = RED if dur_pct < 0.3 else color
+        game.virtual_surface.blit(
+            font.render(f"{arma.durabilidad}/{arma.durabilidad_max}", True, dur_color),
+            (rect.x + 460, y),
+        )
+
+        # Columna: mejoras daño / durabilidad
+        mej_color = (
+            (255, 200, 0)
+            if (
+                arma.mejoras_realizadas_daño >= Arma.MEJORAS_MAX
+                or arma.mejoras_realizadas_durabilidad >= Arma.MEJORAS_MAX
+            )
+            else color
+        )
+        game.virtual_surface.blit(
+            font.render(
+                f"{arma.mejoras_realizadas_daño}/{Arma.MEJORAS_MAX}  "
+                f"{arma.mejoras_realizadas_durabilidad}/{Arma.MEJORAS_MAX}",
+                True,
+                mej_color,
+            ),
+            (rect.x + 570, y),
+        )
+
+    # --- Fila "VOLVER / SALIR" ---
+    exit_idx = len(armas)
+    if exit_idx >= game.herrero_scroll and exit_idx < game.herrero_scroll + max_visible:
+        y = list_top + (exit_idx - game.herrero_scroll) * row_h
+        color = CYAN if exit_idx == game.menu_index else WHITE
+        prefix = "> " if exit_idx == game.menu_index else "  "
+        game.virtual_surface.blit(
+            font.render(prefix + "VOLVER / SALIR", True, color), (rect.x + 20, y)
+        )
+
+    # --- Caja de descripción inferior ---
     if game.menu_index < len(armas):
-        arma, _ = armas[game.menu_index]
+        arma, _origen = armas[game.menu_index]
         desc = f"{arma.descripcion} Daño actual: {arma.daño}."
         game.draw_description_box(desc)
     else:
@@ -1036,57 +1099,150 @@ def _draw_herrero_lista(game):
 
 
 def _draw_herrero_acciones(game):
-    arma, _ = game.herrero_armas[game.herrero_arma_idx]
-    w, h = 520, 400
+    arma, _origen = game.herrero_armas[game.herrero_arma_idx]
+    w, h = 640, 440
     rect = pygame.Rect(MAP_WIDTH // 2 - w // 2, HEIGHT // 2 - h // 2, w, h)
     pygame.draw.rect(game.virtual_surface, (20, 15, 10), rect)
     pygame.draw.rect(game.virtual_surface, (200, 100, 50), rect, 2)
 
-    font = pygame.font.SysFont("Consolas", 18)
-    title = pygame.font.SysFont("Consolas", 22, bold=True)
+    title_font = pygame.font.SysFont("Consolas", 22, bold=True)
+    font = pygame.font.SysFont("Consolas", 17)
+    info_font = pygame.font.SysFont("Consolas", 15)
+
+    # --- Título ---
     game.virtual_surface.blit(
-        title.render(arma.nombre, True, (255, 180, 80)),
+        title_font.render(arma.nombre, True, (255, 180, 80)),
         (rect.x + 20, rect.y + 15),
     )
+    pygame.draw.line(
+        game.virtual_surface,
+        (100, 80, 60),
+        (rect.x + 20, rect.y + 50),
+        (rect.right - 20, rect.y + 50),
+        1,
+    )
 
-    info = pygame.font.SysFont("Consolas", 15)
+    # --- Stats en dos columnas ---
+    col1_x = rect.x + 20
+    col2_x = rect.x + w // 2 + 10
+    stat_y = rect.y + 65
+
     game.virtual_surface.blit(
-        info.render(
-            f"Daño: {arma.daño}  |  Durabilidad: {arma.durabilidad}/{arma.durabilidad_max}",
+        info_font.render(f"Daño actual: {arma.daño}", True, WHITE), (col1_x, stat_y)
+    )
+    game.virtual_surface.blit(
+        info_font.render(
+            f"Durabilidad: {arma.durabilidad}/{arma.durabilidad_max}", True, WHITE
+        ),
+        (col2_x, stat_y),
+    )
+
+    color_mej_d = (
+        (255, 200, 0)
+        if arma.mejoras_realizadas_daño >= Arma.MEJORAS_MAX
+        else LIGHT_GREY
+    )
+    color_mej_u = (
+        (255, 200, 0)
+        if arma.mejoras_realizadas_durabilidad >= Arma.MEJORAS_MAX
+        else LIGHT_GREY
+    )
+    game.virtual_surface.blit(
+        info_font.render(
+            f"Mejoras de daño: {arma.mejoras_realizadas_daño}/{Arma.MEJORAS_MAX}",
             True,
-            LIGHT_GREY,
+            color_mej_d,
         ),
-        (rect.x + 20, rect.y + 45),
-    )
-    color_mej = (
-        (255, 200, 0) if arma.mejoras_realizadas >= Arma.MEJORAS_MAX else LIGHT_GREY
+        (col1_x, stat_y + 25),
     )
     game.virtual_surface.blit(
-        info.render(
-            f"Mejoras: {arma.mejoras_realizadas}/{Arma.MEJORAS_MAX}", True, color_mej
+        info_font.render(
+            f"Mejoras de durabilidad: {arma.mejoras_realizadas_durabilidad}/{Arma.MEJORAS_MAX}",
+            True,
+            color_mej_u,
         ),
-        (rect.x + 20, rect.y + 65),
+        (col2_x, stat_y + 25),
     )
 
-    opciones = [
-        "Reparar",
-        "Mejorar Durabilidad (+25 max)",
-        "Mejorar Daño (+10%)",
-        "Volver",
+    # --- Separador ---
+    pygame.draw.line(
+        game.virtual_surface,
+        (100, 80, 60),
+        (rect.x + 20, rect.y + 120),
+        (rect.right - 20, rect.y + 120),
+        1,
+    )
+
+    # --- Calcular costos actuales ---
+    costo_reparar = (arma.durabilidad_max - arma.durabilidad) * 2
+    costo_mej_dur = 100 + arma.durabilidad_max
+    costo_mej_daño = 200 + arma.daño * 15
+
+    if arma.esta_al_maximo():
+        txt_reparar = "Ya al máximo"
+    else:
+        txt_reparar = f"{costo_reparar} Cob"
+
+    txt_mej_dur = (
+        f"{costo_mej_dur} Cob"
+        if arma.puede_mejorar_durabilidad()
+        else "MÁXIMO ALCANZADO"
+    )
+    txt_mej_daño = (
+        f"{costo_mej_daño} Cob" if arma.puede_mejorar_daño() else "MÁXIMO ALCANZADO"
+    )
+
+    opciones_data = [
+        ("Reparar", txt_reparar),
+        ("Mejorar Durabilidad (+15 máx)", txt_mej_dur),
+        ("Mejorar Daño (+10%)", txt_mej_daño),
+        ("Volver", ""),
     ]
-    for i, opt in enumerate(opciones):
+
+    # --- Dibujar opciones con costo a la derecha ---
+    opt_y = rect.y + 140
+    for i, (opt, costo) in enumerate(opciones_data):
         color = (255, 180, 80) if i == game.menu_index else WHITE
         prefix = "> " if i == game.menu_index else "  "
         game.virtual_surface.blit(
-            font.render(prefix + opt, True, color),
-            (rect.x + 20, rect.y + 110 + i * 40),
+            font.render(prefix + opt, True, color), (rect.x + 30, opt_y)
         )
 
-    # Descripción contextual
+        if costo:
+            # Color del costo: verde si puedes pagar, rojo si no
+            puede_pagar = True
+            if costo.endswith("Cob"):
+                try:
+                    val = int(costo.split()[0])
+                    l = game.player.logic
+                    total_cobre = (
+                        l.cobre + l.plata * 100 + l.oro * 10000 + l.platino * 1000000
+                    )
+                    puede_pagar = total_cobre >= val
+                except (ValueError, IndexError):
+                    puede_pagar = True
+
+            if "MÁXIMO" in costo:
+                costo_color = (255, 200, 0)
+            elif puede_pagar:
+                costo_color = (100, 255, 100)
+            else:
+                costo_color = (255, 100, 100)
+
+            costo_surf = info_font.render(costo, True, costo_color)
+            game.virtual_surface.blit(
+                costo_surf,
+                (rect.right - 30 - costo_surf.get_width(), opt_y + 4),
+            )
+
+        opt_y += 36
+
+    # --- Descripción contextual ---
     descripciones = [
-        f"Restaura la durabilidad al máximo.",
-        f"Aumenta la durabilidad máxima del arma.",
-        f"Aumenta el daño base del arma. Mejoras: {arma.mejoras_realizadas}/{Arma.MEJORAS_MAX}",
+        "Restaura la durabilidad del arma al máximo.",
+        "Aumenta la durabilidad máxima del arma en +15 y la repara.",
+        f"Aumenta el daño base del arma en +10%. "
+        f"Mejoras: {arma.mejoras_realizadas_daño}/{Arma.MEJORAS_MAX}",
         "Volver a la lista de armas.",
     ]
     game.draw_description_box(descripciones[game.menu_index])

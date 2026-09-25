@@ -3,6 +3,17 @@ from settings import *
 from logic.armas import Arma
 
 
+def armas_del_jugador(game):
+    """Devuelve [(arma, origen), ...] con origen 'equipada' o 'inventario'."""
+    armas = []
+    if isinstance(getattr(game.player.logic, "arma", None), Arma):
+        armas.append((game.player.logic.arma, "equipada"))
+    for item in game.player.inventory:
+        if isinstance(item, Arma):
+            armas.append((item, "inventario"))
+    return armas
+
+
 class NPC(pygame.sprite.Sprite):
     def __init__(self, game, x, y, color, nombre, image_path=None):
         self.groups = game.all_sprites, game.npcs
@@ -72,17 +83,8 @@ class Herrero(NPC):
             game, x, y, (200, 100, 50), "Herrero", "assets/sprites/npc_banquero.png"
         )
 
-    def armas_del_jugador(game):
-        armas = []
-        if isinstance(getattr(game.player.logic, "arma", None), Arma):
-            armas.append((game.player.logic.arma, "equipada"))
-        for item in game.player.inventory:
-            if isinstance(item, Arma):
-                armas.append((item, "inventario"))
-        return armas
-
     def interact(self):
         self.game.log.add_message("[HERRERO] Trae tus armas, tengo trabajo que hacer.")
         self.game.state = "HERRERO"
         self.game.menu_index = 0
-        self.game.herrero_armas = self.armas_del_jugador(self.game)
+        self.game.herrero_armas = armas_del_jugador(self.game)

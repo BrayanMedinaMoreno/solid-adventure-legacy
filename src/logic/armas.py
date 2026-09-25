@@ -116,7 +116,8 @@ class Arma:
             "coef_escalado": self.coef_escalado,
             "durabilidad": self.durabilidad,
             "durabilidad_max": self.durabilidad_max,
-            "mejoras_realizadas": self.mejoras_realizadas,
+            "mejoras_realizadas_daño": self.mejoras_realizadas_daño,
+            "mejoras_realizadas_durabilidad": self.mejoras_realizadas_durabilidad,
         }
 
     @classmethod
@@ -133,7 +134,10 @@ class Arma:
         arma.coef_escalado = data.get("coef_escalado", arma.coef_escalado)
         arma.durabilidad_max = data.get("durabilidad_max", arma.durabilidad_max)
         arma.durabilidad = data.get("durabilidad", arma.durabilidad_max)
-        arma.mejoras_realizadas = data.get("mejoras_realizadas", 0)
+        arma.mejoras_realizadas_daño = data.get("mejoras_realizadas_daño", 0)
+        arma.mejoras_realizadas_durabilidad = data.get(
+            "mejoras_realizadas_durabilidad", 0
+        )
         return arma
 
     def __str__(self):
