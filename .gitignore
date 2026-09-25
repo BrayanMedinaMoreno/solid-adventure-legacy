@@ -27,3 +27,8 @@ assets/sprites/temp_sprites/
 
 # Saves
 saves/
+# Compilacion PyInstaller
+build/
+dist/
+*.spec
+*.exe
