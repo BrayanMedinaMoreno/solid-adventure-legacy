@@ -2,6 +2,8 @@ PALABRAS_MAGICAS = ("varita", "báculo", "baculo", "cetro")
 
 
 class Arma:
+    MEJORAS_MAX = 10
+
     def __init__(
         self,
         nombre,
@@ -13,6 +15,8 @@ class Arma:
         self.daño = daño
         self.tipo_daño = tipo_daño  # "fisico" (melee), "distancia" (proyectiles), "contundente" (mazos), "magico" (varitas)
         self.sprite_path = sprite_path or self.determinar_sprite()
+        self.mejoras_realizadas_daño = 0
+        self.mejoras_realizadas_durabilidad = 0
 
         n_lower = self.nombre.lower()
         self.stat_escalado = "fuerza"
@@ -88,6 +92,18 @@ class Arma:
         self.durabilidad_max += mejora
         self.durabilidad = self.durabilidad_max
 
+    def puede_mejorar_daño(self):
+        return self.mejoras_realizadas_daño < self.MEJORAS_MAX
+
+    def puede_mejorar_durabilidad(self):
+        return self.mejoras_realizadas_durabilidad < self.MEJORAS_MAX
+
+    def esta_al_maximo(self):
+        return self.durabilidad >= self.durabilidad_max
+
+    def reparar(self):
+        self.durabilidad = self.durabilidad_max
+
     def to_dict(self):
         return {
             "nombre": self.nombre,
@@ -100,6 +116,7 @@ class Arma:
             "coef_escalado": self.coef_escalado,
             "durabilidad": self.durabilidad,
             "durabilidad_max": self.durabilidad_max,
+            "mejoras_realizadas": self.mejoras_realizadas,
         }
 
     @classmethod
@@ -116,6 +133,7 @@ class Arma:
         arma.coef_escalado = data.get("coef_escalado", arma.coef_escalado)
         arma.durabilidad_max = data.get("durabilidad_max", arma.durabilidad_max)
         arma.durabilidad = data.get("durabilidad", arma.durabilidad_max)
+        arma.mejoras_realizadas = data.get("mejoras_realizadas", 0)
         return arma
 
     def __str__(self):

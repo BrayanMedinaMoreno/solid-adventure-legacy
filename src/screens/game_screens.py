@@ -1,4 +1,4 @@
-﻿import pygame
+import pygame
 from settings import (
     MAP_WIDTH,
     HEIGHT,
@@ -980,3 +980,120 @@ def draw_cross_menu(game):
         )
 
     game.draw_description_box(descriptions[game.menu_index])
+
+
+def _draw_herrero_lista(game):
+    w, h = 520, 480
+    rect = pygame.Rect(MAP_WIDTH // 2 - w // 2, HEIGHT // 2 - h // 2, w, h)
+    pygame.draw.rect(game.virtual_surface, (20, 15, 10), rect)
+    pygame.draw.rect(game.virtual_surface, (200, 100, 50), rect, 2)
+    font = pygame.font.SysFont("Consolas", 18)
+    title = pygame.font.SysFont("Consolas", 22, bold=True)
+    game.virtual_surface.blit(
+        title.render("HERRERO - SELECCIONA UN ARMA", True, (255, 180, 80)),
+        (rect.x + 20, rect.y + 15),
+    )
+
+    armas = getattr(game, "herrero_armas", [])
+    max_visible = (h - 100) // 32
+    if not hasattr(game, "herrero_scroll"):
+        game.herrero_scroll = 0
+    if game.menu_index < game.herrero_scroll:
+        game.herrero_scroll = game.menu_index
+    elif game.menu_index >= game.herrero_scroll + max_visible:
+        game.herrero_scroll = game.menu_index - max_visible + 1
+
+    for i in range(
+        game.herrero_scroll, min(len(armas), game.herrero_scroll + max_visible)
+    ):
+        arma, origen = armas[i]
+        color = (255, 180, 80) if i == game.menu_index else WHITE
+        prefix = "> " if i == game.menu_index else "  "
+        tag = "[E]" if origen == "equipada" else "   "
+        dur = f"{arma.durabilidad}/{arma.durabilidad_max}"
+        mej = f" +{arma.mejoras_realizadas}" if arma.mejoras_realizadas > 0 else ""
+        game.virtual_surface.blit(
+            font.render(f"{prefix}{tag} {arma.nombre} ({dur}){mej}", True, color),
+            (rect.x + 20, rect.y + 50 + (i - game.herrero_scroll) * 32),
+        )
+    exit_idx = len(armas)
+    if exit_idx >= game.herrero_scroll and exit_idx < game.herrero_scroll + max_visible:
+        color = CYAN if exit_idx == game.menu_index else WHITE
+        prefix = "> " if exit_idx == game.menu_index else "  "
+        draw_y = rect.y + 40 + (exit_idx - game.herrero_scroll) * 30
+        game.virtual_surface.blit(
+            font.render(prefix + "VOLVER / SALIR", True, color),
+            (rect.x + 20, draw_y),
+        )
+
+    # Description box
+    if game.menu_index < len(armas):
+        arma, _ = armas[game.menu_index]
+        desc = f"{arma.descripcion} Daño actual: {arma.daño}."
+        game.draw_description_box(desc)
+    else:
+        game.draw_description_box("Salir del taller del herrero.")
+
+
+def _draw_herrero_acciones(game):
+    arma, _ = game.herrero_armas[game.herrero_arma_idx]
+    w, h = 520, 400
+    rect = pygame.Rect(MAP_WIDTH // 2 - w // 2, HEIGHT // 2 - h // 2, w, h)
+    pygame.draw.rect(game.virtual_surface, (20, 15, 10), rect)
+    pygame.draw.rect(game.virtual_surface, (200, 100, 50), rect, 2)
+
+    font = pygame.font.SysFont("Consolas", 18)
+    title = pygame.font.SysFont("Consolas", 22, bold=True)
+    game.virtual_surface.blit(
+        title.render(arma.nombre, True, (255, 180, 80)),
+        (rect.x + 20, rect.y + 15),
+    )
+
+    info = pygame.font.SysFont("Consolas", 15)
+    game.virtual_surface.blit(
+        info.render(
+            f"Daño: {arma.daño}  |  Durabilidad: {arma.durabilidad}/{arma.durabilidad_max}",
+            True,
+            LIGHT_GREY,
+        ),
+        (rect.x + 20, rect.y + 45),
+    )
+    color_mej = (
+        (255, 200, 0) if arma.mejoras_realizadas >= Arma.MEJORAS_MAX else LIGHT_GREY
+    )
+    game.virtual_surface.blit(
+        info.render(
+            f"Mejoras: {arma.mejoras_realizadas}/{Arma.MEJORAS_MAX}", True, color_mej
+        ),
+        (rect.x + 20, rect.y + 65),
+    )
+
+    opciones = [
+        "Reparar",
+        "Mejorar Durabilidad (+25 max)",
+        "Mejorar Daño (+10%)",
+        "Volver",
+    ]
+    for i, opt in enumerate(opciones):
+        color = (255, 180, 80) if i == game.menu_index else WHITE
+        prefix = "> " if i == game.menu_index else "  "
+        game.virtual_surface.blit(
+            font.render(prefix + opt, True, color),
+            (rect.x + 20, rect.y + 110 + i * 40),
+        )
+
+    # Descripción contextual
+    descripciones = [
+        f"Restaura la durabilidad al máximo.",
+        f"Aumenta la durabilidad máxima del arma.",
+        f"Aumenta el daño base del arma. Mejoras: {arma.mejoras_realizadas}/{Arma.MEJORAS_MAX}",
+        "Volver a la lista de armas.",
+    ]
+    game.draw_description_box(descripciones[game.menu_index])
+
+
+def draw_herrero_menu(game):
+    if game.state == "HERRERO":
+        _draw_herrero_lista(game)
+    else:
+        _draw_herrero_acciones(game)
