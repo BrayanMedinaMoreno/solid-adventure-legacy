@@ -1,78 +1,102 @@
-﻿import pygame
-from settings import MAP_WIDTH, HEIGHT, WIDTH, WHITE, CYAN, YELLOW, GREEN, RED, LIGHT_GREY, DARK_GREY, BLACK
+import pygame
+from settings import (
+    MAP_WIDTH,
+    HEIGHT,
+    WIDTH,
+    WHITE,
+    CYAN,
+    YELLOW,
+    GREEN,
+    RED,
+    LIGHT_GREY,
+    DARK_GREY,
+    BLACK,
+)
 from logic.armas import Arma
 from logic.armaduras import Armadura
+
 
 def draw_combat_menu(game):
     import core.combat as combat
     from settings import UI_WIDTH
+
     # Centrar el menú entre el panel izquierdo (enemigo) y derecho (jugador)
     center_x = UI_WIDTH + (MAP_WIDTH - UI_WIDTH) // 2
     menu_rect = pygame.Rect(center_x - 120, HEIGHT // 2 + 80, 240, 180)
     pygame.draw.rect(game.virtual_surface, (20, 20, 20), menu_rect)
     pygame.draw.rect(game.virtual_surface, WHITE, menu_rect, 2)
-    
-    font = pygame.font.SysFont('Consolas', 20)
+
+    font = pygame.font.SysFont("Consolas", 20)
     options = combat.get_combat_options(game)
     game.menu_index = max(0, min(game.menu_index, len(options) - 1))
-    
+
     for i, option in enumerate(options):
         color = CYAN if i == game.menu_index else WHITE
         prefix = "> " if i == game.menu_index else "  "
         text_surface = font.render(prefix + option, True, color)
-        game.virtual_surface.blit(text_surface, (menu_rect.x + 20, menu_rect.y + 20 + i * 35))
+        game.virtual_surface.blit(
+            text_surface, (menu_rect.x + 20, menu_rect.y + 20 + i * 35)
+        )
 
 
 def draw_enemy_info_box(game):
     if not game.current_enemy:
         return
-        
+
     enemy = game.current_enemy
     from settings import UI_WIDTH
-    
+
     # Dibujar panel a la izquierda de la pantalla
     panel_rect = pygame.Rect(0, 0, UI_WIDTH, HEIGHT)
     pygame.draw.rect(game.virtual_surface, (15, 10, 10), panel_rect)
     pygame.draw.rect(game.virtual_surface, RED, panel_rect, 2)
-    
+
     start_x = 20
     y = 20
-    
-    title_font = pygame.font.SysFont('Consolas', 24, bold=True)
-    font = pygame.font.SysFont('Consolas', 18)
-    small_font = pygame.font.SysFont('Consolas', 14)
-    
+
+    title_font = pygame.font.SysFont("Consolas", 24, bold=True)
+    font = pygame.font.SysFont("Consolas", 18)
+    small_font = pygame.font.SysFont("Consolas", 14)
+
     # Nombre y Nivel/Tipo
     game.virtual_surface.blit(title_font.render(enemy.name, True, RED), (start_x, y))
     y += 30
-    
-    if hasattr(enemy, 'titulo') and enemy.titulo:
-        game.virtual_surface.blit(font.render(f"<{enemy.titulo}>", True, CYAN), (start_x, y))
+
+    if hasattr(enemy, "titulo") and enemy.titulo:
+        game.virtual_surface.blit(
+            font.render(f"<{enemy.titulo}>", True, CYAN), (start_x, y)
+        )
         y += 25
         # Descripcion
         from logic.titulos_enemigos import TITULOS_ENEMIGOS
+
         desc = TITULOS_ENEMIGOS.get(enemy.titulo, {}).get("descripcion", "")
         if desc:
-            words = desc.split(' ')
+            words = desc.split(" ")
             line = ""
             for word in words:
                 if len(line) + len(word) < 30:
                     line += word + " "
                 else:
-                    game.virtual_surface.blit(small_font.render(line.strip(), True, (200, 200, 200)), (start_x, y))
+                    game.virtual_surface.blit(
+                        small_font.render(line.strip(), True, (200, 200, 200)),
+                        (start_x, y),
+                    )
                     y += 15
                     line = word + " "
             if line:
-                game.virtual_surface.blit(small_font.render(line.strip(), True, (200, 200, 200)), (start_x, y))
+                game.virtual_surface.blit(
+                    small_font.render(line.strip(), True, (200, 200, 200)), (start_x, y)
+                )
                 y += 15
     y += 10
-    
+
     # Imagen
-    if hasattr(enemy, 'image') and enemy.image:
+    if hasattr(enemy, "image") and enemy.image:
         enemy_img = pygame.transform.scale(enemy.image, (64, 64))
         game.virtual_surface.blit(enemy_img, (start_x, y))
     y += 80
-    
+
     # HP Bar
     bar_w = UI_WIDTH - 40
     bar_h = 15
@@ -80,65 +104,86 @@ def draw_enemy_info_box(game):
     fill = (enemy.vida / enemy.max_vida) * bar_w
     pygame.draw.rect(game.virtual_surface, RED, (start_x, y, fill, bar_h))
     pygame.draw.rect(game.virtual_surface, WHITE, (start_x, y, bar_w, bar_h), 1)
-    
+
     hp_text = f"HP: {enemy.vida}/{enemy.max_vida}"
     hp_surface = small_font.render(hp_text, True, WHITE)
-    game.virtual_surface.blit(hp_surface, (start_x + bar_w // 2 - hp_surface.get_width() // 2, y - 1))
+    game.virtual_surface.blit(
+        hp_surface, (start_x + bar_w // 2 - hp_surface.get_width() // 2, y - 1)
+    )
     y += 30
-    
+
     # Stats
-    game.virtual_surface.blit(font.render(f"ATK: {enemy.fuerza}", True, (255, 150, 50)), (start_x, y))
+    game.virtual_surface.blit(
+        font.render(f"ATK: {enemy.fuerza}", True, (255, 150, 50)), (start_x, y)
+    )
     y += 25
-    game.virtual_surface.blit(font.render(f"DEF: {enemy.defensa}", True, (100, 150, 255)), (start_x, y))
+    game.virtual_surface.blit(
+        font.render(f"DEF: {enemy.defensa}", True, (100, 150, 255)), (start_x, y)
+    )
     y += 25
-    game.virtual_surface.blit(font.render(f"MAG: {getattr(enemy, 'defensa_magica', 0)}", True, (180, 100, 255)), (start_x, y))
+    game.virtual_surface.blit(
+        font.render(
+            f"MAG: {getattr(enemy, 'defensa_magica', 0)}", True, (180, 100, 255)
+        ),
+        (start_x, y),
+    )
     y += 35
-    
+
     # Recompensa
     game.virtual_surface.blit(font.render("RECOMPENSA", True, YELLOW), (start_x, y))
     y += 25
-    game.virtual_surface.blit(font.render(f"+ {enemy.xp_recompensa} XP", True, CYAN), (start_x, y))
+    game.virtual_surface.blit(
+        font.render(f"+ {enemy.xp_recompensa} XP", True, CYAN), (start_x, y)
+    )
     y += 30
-    
+
     # Equipamiento
     game.virtual_surface.blit(font.render("EQUIPAMIENTO", True, YELLOW), (start_x, y))
     y += 25
-    
+
     equipado = []
-    if hasattr(enemy, 'loot_extra'):
+    if hasattr(enemy, "loot_extra"):
         for loot in enemy.loot_extra:
             item = loot[0] if isinstance(loot, tuple) else loot
-            if hasattr(item, 'nombre'):
+            if hasattr(item, "nombre"):
                 equipado.append(item.nombre)
-                
+
     if equipado:
         for eq in equipado:
-            game.virtual_surface.blit(small_font.render(f"- {eq}", True, LIGHT_GREY), (start_x, y))
+            game.virtual_surface.blit(
+                small_font.render(f"- {eq}", True, LIGHT_GREY), (start_x, y)
+            )
             y += 20
     else:
-        game.virtual_surface.blit(small_font.render("- Sin equipo", True, LIGHT_GREY), (start_x, y))
+        game.virtual_surface.blit(
+            small_font.render("- Sin equipo", True, LIGHT_GREY), (start_x, y)
+        )
 
 
 def draw_inventory_menu(game):
     w, h = 600, 500
     menu_rect = pygame.Rect(MAP_WIDTH // 2 - w // 2, HEIGHT // 2 - h // 2, w, h)
-    
+
     pygame.draw.rect(game.virtual_surface, (15, 15, 25), menu_rect)
     pygame.draw.rect(game.virtual_surface, CYAN, menu_rect, 2)
-    
+
     tab_h = 42
-    pygame.draw.rect(game.virtual_surface, (25, 25, 40), (menu_rect.x, menu_rect.y, menu_rect.width, tab_h))
-    
-    title_font = pygame.font.SysFont('Consolas', 18, bold=True)
-    small_hint_font = pygame.font.SysFont('Consolas', 14)
-    
+    pygame.draw.rect(
+        game.virtual_surface,
+        (25, 25, 40),
+        (menu_rect.x, menu_rect.y, menu_rect.width, tab_h),
+    )
+
+    title_font = pygame.font.SysFont("Consolas", 18, bold=True)
+    small_hint_font = pygame.font.SysFont("Consolas", 14)
+
     tabs_data = [
         ("INVENTARIO", "[ 1. MOCHILA ]"),
         ("EQUIPO", "[ 2. EQUIPO ]"),
-        ("TITULOS", "[ 3. TITULOS ]")
+        ("TITULOS", "[ 3. TITULOS ]"),
     ]
     for i, (tab_id, tab_label) in enumerate(tabs_data):
-        tab_active = getattr(game, 'inventory_tab', 'INVENTARIO') == tab_id
+        tab_active = getattr(game, "inventory_tab", "INVENTARIO") == tab_id
         tab_rect = pygame.Rect(menu_rect.x + 8 + i * 145, menu_rect.y + 6, 140, 30)
         bg_tab = (45, 45, 75) if tab_active else (20, 20, 30)
         border_tab = YELLOW if tab_active else (60, 60, 80)
@@ -146,45 +191,57 @@ def draw_inventory_menu(game):
         pygame.draw.rect(game.virtual_surface, bg_tab, tab_rect)
         pygame.draw.rect(game.virtual_surface, border_tab, tab_rect, 2)
         t_surf = title_font.render(tab_label, True, color_tab)
-        game.virtual_surface.blit(t_surf, (tab_rect.x + (tab_rect.width - t_surf.get_width()) // 2, tab_rect.y + 5))
+        game.virtual_surface.blit(
+            t_surf,
+            (tab_rect.x + (tab_rect.width - t_surf.get_width()) // 2, tab_rect.y + 5),
+        )
 
     hint_surf = small_hint_font.render("[TAB/Q/E] Cambiar", True, (170, 170, 200))
-    game.virtual_surface.blit(hint_surf, (menu_rect.right - hint_surf.get_width() - 15, menu_rect.y + 13))
+    game.virtual_surface.blit(
+        hint_surf, (menu_rect.right - hint_surf.get_width() - 15, menu_rect.y + 13)
+    )
 
-    font = pygame.font.SysFont('Consolas', 18)
-    small_font = pygame.font.SysFont('Consolas', 14)
+    font = pygame.font.SysFont("Consolas", 18)
+    small_font = pygame.font.SysFont("Consolas", 14)
 
-    if getattr(game, 'inventory_tab', 'INVENTARIO') == "INVENTARIO":
+    if getattr(game, "inventory_tab", "INVENTARIO") == "INVENTARIO":
         inv = game.player.inventory
         game.menu_index = max(0, min(game.menu_index, len(inv)))
-        
+
         list_rect = pygame.Rect(menu_rect.x + 10, menu_rect.y + 50, 350, h - 70)
         pygame.draw.rect(game.virtual_surface, (10, 10, 15), list_rect)
         pygame.draw.rect(game.virtual_surface, (50, 50, 70), list_rect, 1)
-        
+
         eq_rect = pygame.Rect(menu_rect.x + 370, menu_rect.y + 50, 220, h - 70)
         pygame.draw.rect(game.virtual_surface, (20, 20, 35), eq_rect)
         pygame.draw.rect(game.virtual_surface, CYAN, eq_rect, 1)
-        
-        game.virtual_surface.blit(font.render("EQUIPADO:", True, CYAN), (eq_rect.x + 10, eq_rect.y + 10))
+
+        game.virtual_surface.blit(
+            font.render("EQUIPADO:", True, CYAN), (eq_rect.x + 10, eq_rect.y + 10)
+        )
         y_eq = eq_rect.y + 40
         slots = [
             ("ARMA", game.player.logic.arma),
             ("CABEZA", game.player.logic.casco),
             ("PECHO", game.player.logic.pechera),
             ("PIES", game.player.logic.botas),
-            ("ACCES.", getattr(game.player.logic, 'accesorio', None))
+            ("ACCES.", getattr(game.player.logic, "accesorio", None)),
         ]
         for label, item in slots:
-            game.virtual_surface.blit(small_font.render(label, True, LIGHT_GREY), (eq_rect.x + 10, y_eq))
+            game.virtual_surface.blit(
+                small_font.render(label, True, LIGHT_GREY), (eq_rect.x + 10, y_eq)
+            )
             nombre = item.nombre if item else "---"
             color = YELLOW if item else (100, 100, 100)
-            game.virtual_surface.blit(font.render(nombre, True, color), (eq_rect.x + 10, y_eq + 15))
+            game.virtual_surface.blit(
+                font.render(nombre, True, color), (eq_rect.x + 10, y_eq + 15)
+            )
             y_eq += 45
 
         max_visible = (list_rect.height - 40) // 30
-        if not hasattr(game, 'inv_scroll'): game.inv_scroll = 0
-        
+        if not hasattr(game, "inv_scroll"):
+            game.inv_scroll = 0
+
         if game.menu_index < game.inv_scroll:
             game.inv_scroll = game.menu_index
         elif game.menu_index >= game.inv_scroll + max_visible:
@@ -195,19 +252,28 @@ def draw_inventory_menu(game):
             logic = game.player.logic
             is_equipped = False
             if isinstance(item, Arma):
-                if item == logic.arma: is_equipped = True
+                if item == logic.arma:
+                    is_equipped = True
             elif isinstance(item, Armadura):
-                if item in [logic.casco, logic.pechera, logic.botas]: is_equipped = True
+                if item in [logic.casco, logic.pechera, logic.botas]:
+                    is_equipped = True
             elif item.__class__.__name__ == "Accesorio":
-                if item == getattr(logic, 'accesorio', None): is_equipped = True
+                if item == getattr(logic, "accesorio", None):
+                    is_equipped = True
 
             color = CYAN if i == game.menu_index else (GREEN if is_equipped else WHITE)
             prefix = "> " if i == game.menu_index else "  "
             eq_tag = " [E]" if is_equipped else ""
-            cant_tag = f" x{item.cantidad}" if hasattr(item, 'cantidad') and item.cantidad > 1 else ""
-            
+            cant_tag = (
+                f" x{item.cantidad}"
+                if hasattr(item, "cantidad") and item.cantidad > 1
+                else ""
+            )
+
             draw_y = menu_rect.y + 50 + (i - game.inv_scroll) * 30
-            text_surface = font.render(f"{prefix}{item.nombre}{cant_tag}{eq_tag}", True, color)
+            text_surface = font.render(
+                f"{prefix}{item.nombre}{cant_tag}{eq_tag}", True, color
+            )
             game.virtual_surface.blit(text_surface, (menu_rect.x + 20, draw_y))
 
         exit_idx = len(inv)
@@ -215,15 +281,18 @@ def draw_inventory_menu(game):
             color = CYAN if exit_idx == game.menu_index else WHITE
             prefix = "> " if exit_idx == game.menu_index else "  "
             draw_y = menu_rect.y + 50 + (exit_idx - game.inv_scroll) * 30
-            game.virtual_surface.blit(font.render(prefix + "VOLVER / SALIR", True, color), (menu_rect.x + 20, draw_y))
+            game.virtual_surface.blit(
+                font.render(prefix + "VOLVER / SALIR", True, color),
+                (menu_rect.x + 20, draw_y),
+            )
 
         if game.menu_index < len(inv):
             item = inv[game.menu_index]
-            game.draw_description_box(getattr(item, 'descripcion', "Sin descripción."))
+            game.draw_description_box(getattr(item, "descripcion", "Sin descripción."))
         else:
             game.draw_description_box("Cerrar el inventario y volver al juego.")
 
-    elif getattr(game, 'inventory_tab', 'INVENTARIO') == "EQUIPO":
+    elif getattr(game, "inventory_tab", "INVENTARIO") == "EQUIPO":
         list_rect = pygame.Rect(menu_rect.x + 10, menu_rect.y + 50, 580, h - 70)
         pygame.draw.rect(game.virtual_surface, (10, 10, 15), list_rect)
         pygame.draw.rect(game.virtual_surface, (50, 50, 70), list_rect, 1)
@@ -233,38 +302,54 @@ def draw_inventory_menu(game):
             ("CABEZA", game.player.logic.casco),
             ("PECHO", game.player.logic.pechera),
             ("PIES", game.player.logic.botas),
-            ("ACCES.", getattr(game.player.logic, 'accesorio', None))
+            ("ACCES.", getattr(game.player.logic, "accesorio", None)),
         ]
-        
+
         game.menu_index = max(0, min(game.menu_index, len(slots)))
 
         y_eq = menu_rect.y + 70
         for i, (label, item) in enumerate(slots):
             color = CYAN if i == game.menu_index else WHITE
             prefix = "> " if i == game.menu_index else "  "
-            
-            game.virtual_surface.blit(font.render(f"{prefix}{label}:", True, color), (menu_rect.x + 30, y_eq))
-            
-            nombre = f"{item.nombre} ({item.durabilidad}/{item.max_durabilidad})" if item and hasattr(item, "durabilidad") else (item.nombre if item else "---")
+
+            game.virtual_surface.blit(
+                font.render(f"{prefix}{label}:", True, color), (menu_rect.x + 30, y_eq)
+            )
+
+            if item:
+                dur = getattr(item, "durabilidad", None)
+                dur_max = getattr(item, "durabilidad_max", None)
+                if dur is not None and dur_max is not None:
+                    nombre = f"{item.nombre} ({dur}/{dur_max})"
+                else:
+                    nombre = item.nombre
+            else:
+                nombre = "---"
             item_color = YELLOW if item else (100, 100, 100)
-            game.virtual_surface.blit(font.render(nombre, True, item_color), (menu_rect.x + 150, y_eq))
-            
+            game.virtual_surface.blit(
+                font.render(nombre, True, item_color), (menu_rect.x + 150, y_eq)
+            )
+
             # Show a brief hint of stats if equipped
             if item and i == game.menu_index:
-                desc = getattr(item, 'descripcion', "Sin descripcin.")
+                desc = getattr(item, "descripcion", "Sin descripcin.")
                 game.draw_description_box(f"{desc} (Presiona ENTER para Desequipar)")
-            
+
             y_eq += 50
-            
+
         exit_idx = len(slots)
         color = CYAN if exit_idx == game.menu_index else WHITE
         prefix = "> " if exit_idx == game.menu_index else "  "
-        game.virtual_surface.blit(font.render(prefix + "VOLVER / SALIR", True, color), (menu_rect.x + 30, y_eq))
+        game.virtual_surface.blit(
+            font.render(prefix + "VOLVER / SALIR", True, color),
+            (menu_rect.x + 30, y_eq),
+        )
         if game.menu_index == exit_idx:
             game.draw_description_box("Cerrar el inventario y volver al juego.")
 
-    else: # TITULOS
+    else:  # TITULOS
         from logic.personaje import TITULOS_DATA
+
         titulos = game.player.logic.titulos_desbloqueados
         game.menu_index = max(0, min(game.menu_index, len(titulos)))
 
@@ -276,15 +361,36 @@ def draw_inventory_menu(game):
         pygame.draw.rect(game.virtual_surface, (20, 20, 35), info_rect)
         pygame.draw.rect(game.virtual_surface, CYAN, info_rect, 1)
 
-        game.virtual_surface.blit(font.render("CONTRATO ACTIVO:", True, CYAN), (info_rect.x + 10, info_rect.y + 15))
-        act_nombre = ", ".join(game.player.logic.titulos_activos) if getattr(game.player.logic, "titulos_activos", []) else "Ninguno"
-        if len(act_nombre) > 25: act_nombre = f"{len(game.player.logic.titulos_activos)} Activos"
-        game.virtual_surface.blit(title_font.render(act_nombre, True, GREEN), (info_rect.x + 10, info_rect.y + 40))
+        game.virtual_surface.blit(
+            font.render("CONTRATO ACTIVO:", True, CYAN),
+            (info_rect.x + 10, info_rect.y + 15),
+        )
+        act_nombre = (
+            ", ".join(game.player.logic.titulos_activos)
+            if getattr(game.player.logic, "titulos_activos", [])
+            else "Ninguno"
+        )
+        if len(act_nombre) > 25:
+            act_nombre = f"{len(game.player.logic.titulos_activos)} Activos"
+        game.virtual_surface.blit(
+            title_font.render(act_nombre, True, GREEN),
+            (info_rect.x + 10, info_rect.y + 40),
+        )
 
-        game.virtual_surface.blit(small_font.render(f"Desbloqueados: {len(titulos)}/{len(TITULOS_DATA)}", True, YELLOW), (info_rect.x + 10, info_rect.y + 80))
-        
-        p_count = sum(1 for t in titulos if TITULOS_DATA.get(t, {}).get("tipo") == "pasivo")
-        game.virtual_surface.blit(small_font.render(f"Pasivos activos: {p_count}", True, CYAN), (info_rect.x + 10, info_rect.y + 105))
+        game.virtual_surface.blit(
+            small_font.render(
+                f"Desbloqueados: {len(titulos)}/{len(TITULOS_DATA)}", True, YELLOW
+            ),
+            (info_rect.x + 10, info_rect.y + 80),
+        )
+
+        p_count = sum(
+            1 for t in titulos if TITULOS_DATA.get(t, {}).get("tipo") == "pasivo"
+        )
+        game.virtual_surface.blit(
+            small_font.render(f"Pasivos activos: {p_count}", True, CYAN),
+            (info_rect.x + 10, info_rect.y + 105),
+        )
 
         inst_lines = [
             "Los pasivos (+) siempre",
@@ -292,37 +398,57 @@ def draw_inventory_menu(game):
             "",
             "Presiona [ENTER] para",
             "equipar un titulo",
-            "activo (*)."
+            "activo (*).",
         ]
         for idx_l, line in enumerate(inst_lines):
-            game.virtual_surface.blit(small_font.render(line, True, LIGHT_GREY), (info_rect.x + 10, info_rect.y + 145 + idx_l * 20))
+            game.virtual_surface.blit(
+                small_font.render(line, True, LIGHT_GREY),
+                (info_rect.x + 10, info_rect.y + 145 + idx_l * 20),
+            )
 
         max_visible = (list_rect.height - 40) // 30
-        if not hasattr(game, 'title_scroll'): game.title_scroll = 0
+        if not hasattr(game, "title_scroll"):
+            game.title_scroll = 0
         if game.menu_index < game.title_scroll:
             game.title_scroll = game.menu_index
         elif game.menu_index >= game.title_scroll + max_visible:
             game.title_scroll = game.menu_index - max_visible + 1
 
-        for i in range(game.title_scroll, min(len(titulos), game.title_scroll + max_visible)):
+        for i in range(
+            game.title_scroll, min(len(titulos), game.title_scroll + max_visible)
+        ):
             t_name = titulos[i]
             t_data = TITULOS_DATA.get(t_name, {})
             is_passive = t_data.get("tipo") == "pasivo"
             is_active = t_name in getattr(game.player.logic, "titulos_activos", [])
 
-            color = YELLOW if i == game.menu_index else (GREEN if is_active else (CYAN if is_passive else WHITE))
-            prefix = "> " if i == game.menu_index else ("* " if is_active else ("+ " if is_passive else "  "))
+            color = (
+                YELLOW
+                if i == game.menu_index
+                else (GREEN if is_active else (CYAN if is_passive else WHITE))
+            )
+            prefix = (
+                "> "
+                if i == game.menu_index
+                else ("* " if is_active else ("+ " if is_passive else "  "))
+            )
             suffix = " [PASIVO]" if is_passive else (" [ACTIVO]" if is_active else "")
 
             draw_y = menu_rect.y + 50 + (i - game.title_scroll) * 30
-            game.virtual_surface.blit(font.render(f"{prefix}{t_name}{suffix}", True, color), (menu_rect.x + 20, draw_y))
+            game.virtual_surface.blit(
+                font.render(f"{prefix}{t_name}{suffix}", True, color),
+                (menu_rect.x + 20, draw_y),
+            )
 
         exit_idx = len(titulos)
         if exit_idx >= game.title_scroll and exit_idx < game.title_scroll + max_visible:
             color = CYAN if exit_idx == game.menu_index else WHITE
             prefix = "> " if exit_idx == game.menu_index else "  "
             draw_y = menu_rect.y + 50 + (exit_idx - game.title_scroll) * 30
-            game.virtual_surface.blit(font.render(prefix + "VOLVER / SALIR", True, color), (menu_rect.x + 20, draw_y))
+            game.virtual_surface.blit(
+                font.render(prefix + "VOLVER / SALIR", True, color),
+                (menu_rect.x + 20, draw_y),
+            )
 
         if game.menu_index < len(titulos):
             t_name = titulos[game.menu_index]
@@ -333,127 +459,181 @@ def draw_inventory_menu(game):
 
 
 def draw_shop_menu(game):
-    cat = getattr(game, 'shop_category', 'MAIN')
-    if cat == 'POTIONS':
+    cat = getattr(game, "shop_category", "MAIN")
+    if cat == "POTIONS":
         draw_shop_potions(game)
-    elif cat == 'WEAPONS':
+    elif cat == "WEAPONS":
         draw_shop_weapons(game)
-    elif cat == 'ARMORS':
+    elif cat == "ARMORS":
         draw_shop_armors(game)
     else:
         w, h = 450, 350
         rect = pygame.Rect(MAP_WIDTH // 2 - w // 2, HEIGHT // 2 - h // 2, w, h)
         pygame.draw.rect(game.virtual_surface, (20, 20, 30), rect)
         pygame.draw.rect(game.virtual_surface, CYAN, rect, 2)
-        font = pygame.font.SysFont('Consolas', 20, bold=True)
-        game.virtual_surface.blit(font.render("TIENDA - SELECCIONA CATEGORIA -", True, YELLOW), (rect.x + 30, rect.y + 20))
-        options = ["1. Pociones", "2. Armas", "3. Armaduras", "4. Vender Objeto", "5. Salir"]
+        font = pygame.font.SysFont("Consolas", 20, bold=True)
+        game.virtual_surface.blit(
+            font.render("TIENDA - SELECCIONA CATEGORIA -", True, YELLOW),
+            (rect.x + 30, rect.y + 20),
+        )
+        options = [
+            "1. Pociones",
+            "2. Armas",
+            "3. Armaduras",
+            "4. Vender Objeto",
+            "5. Salir",
+        ]
         for i, text_opt in enumerate(options):
             color = CYAN if i == game.menu_index else WHITE
             prefix = "> " if i == game.menu_index else "  "
-            game.virtual_surface.blit(font.render(prefix + text_opt, True, color), (rect.x + 40, rect.y + 70 + i * 40))
+            game.virtual_surface.blit(
+                font.render(prefix + text_opt, True, color),
+                (rect.x + 40, rect.y + 70 + i * 40),
+            )
         draw_vault_money(game, rect)
+
 
 def draw_shop_potions(game):
     w, h = 450, 350
     rect = pygame.Rect(MAP_WIDTH // 2 - w // 2, HEIGHT // 2 - h // 2, w, h)
     pygame.draw.rect(game.virtual_surface, (20, 20, 30), rect)
     pygame.draw.rect(game.virtual_surface, CYAN, rect, 2)
-    font = pygame.font.SysFont('Consolas', 20, bold=True)
-    game.virtual_surface.blit(font.render("TIENDA - POCIONES", True, YELLOW), (rect.x + 30, rect.y + 20))
+    font = pygame.font.SysFont("Consolas", 20, bold=True)
+    game.virtual_surface.blit(
+        font.render("TIENDA - POCIONES", True, YELLOW), (rect.x + 30, rect.y + 20)
+    )
     options = [
         "Pocion Vida Media (1 Plata)",
         "Pocion Vida Grande (3 Plata)",
         "Pocion Mana Media (1 Pl, 50 Cob)",
         "Pocion Regreso (50 Cob)",
-        "Grimorio Aprendiz (1 Oro)"
-    ,
-        "Volver"
+        "Grimorio Aprendiz (1 Oro)",
+        "Volver",
     ]
     for i, text_opt in enumerate(options):
         color = CYAN if i == game.menu_index else WHITE
         prefix = "> " if i == game.menu_index else "  "
-        game.virtual_surface.blit(font.render(prefix + text_opt, True, color), (rect.x + 40, rect.y + 70 + i * 40))
+        game.virtual_surface.blit(
+            font.render(prefix + text_opt, True, color),
+            (rect.x + 40, rect.y + 70 + i * 40),
+        )
     draw_vault_money(game, rect)
+
 
 def draw_shop_weapons(game):
     w, h = 480, 350
     rect = pygame.Rect(MAP_WIDTH // 2 - w // 2, HEIGHT // 2 - h // 2, w, h)
     pygame.draw.rect(game.virtual_surface, (20, 20, 30), rect)
     pygame.draw.rect(game.virtual_surface, CYAN, rect, 2)
-    font = pygame.font.SysFont('Consolas', 20, bold=True)
-    game.virtual_surface.blit(font.render("TIENDA - ARMAS (5 Plata c/u)", True, YELLOW), (rect.x + 30, rect.y + 20))
+    font = pygame.font.SysFont("Consolas", 20, bold=True)
+    game.virtual_surface.blit(
+        font.render("TIENDA - ARMAS (5 Plata c/u)", True, YELLOW),
+        (rect.x + 30, rect.y + 20),
+    )
     options = [
         f"Espada lvl {game.player.logic.nivel} (Cuerpo a cuerpo)",
         f"Arco lvl {game.player.logic.nivel} (A distancia)",
         f"Mazo lvl {game.player.logic.nivel} (Contundente)",
-        f"Varita lvl {game.player.logic.nivel} (Magico)"
-    ,
-        "Volver"
+        f"Varita lvl {game.player.logic.nivel} (Magico)",
+        "Volver",
     ]
     for i, text_opt in enumerate(options):
         color = CYAN if i == game.menu_index else WHITE
         prefix = "> " if i == game.menu_index else "  "
-        game.virtual_surface.blit(font.render(prefix + text_opt, True, color), (rect.x + 40, rect.y + 70 + i * 40))
+        game.virtual_surface.blit(
+            font.render(prefix + text_opt, True, color),
+            (rect.x + 40, rect.y + 70 + i * 40),
+        )
     draw_vault_money(game, rect)
+
 
 def draw_shop_armors(game):
     w, h = 480, 350
     rect = pygame.Rect(MAP_WIDTH // 2 - w // 2, HEIGHT // 2 - h // 2, w, h)
     pygame.draw.rect(game.virtual_surface, (20, 20, 30), rect)
     pygame.draw.rect(game.virtual_surface, CYAN, rect, 2)
-    font = pygame.font.SysFont('Consolas', 20, bold=True)
-    game.virtual_surface.blit(font.render("TIENDA - ARMADURAS (6 Plata c/u)", True, YELLOW), (rect.x + 30, rect.y + 20))
+    font = pygame.font.SysFont("Consolas", 20, bold=True)
+    game.virtual_surface.blit(
+        font.render("TIENDA - ARMADURAS (6 Plata c/u)", True, YELLOW),
+        (rect.x + 30, rect.y + 20),
+    )
     options = [
         f"Casco lvl {game.player.logic.nivel} (+Defensa)",
         f"Pechera lvl {game.player.logic.nivel} (++Defensa)",
-        f"Botas lvl {game.player.logic.nivel} (+Defensa)"
-    ,
-        "Volver"
+        f"Botas lvl {game.player.logic.nivel} (+Defensa)",
+        "Volver",
     ]
     for i, text_opt in enumerate(options):
         color = CYAN if i == game.menu_index else WHITE
         prefix = "> " if i == game.menu_index else "  "
-        game.virtual_surface.blit(font.render(prefix + text_opt, True, color), (rect.x + 40, rect.y + 70 + i * 40))
+        game.virtual_surface.blit(
+            font.render(prefix + text_opt, True, color),
+            (rect.x + 40, rect.y + 70 + i * 40),
+        )
     draw_vault_money(game, rect)
+
 
 def draw_shop_accessories(game):
     w, h = 540, 350
     rect = pygame.Rect(MAP_WIDTH // 2 - w // 2, HEIGHT // 2 - h // 2, w, h)
     pygame.draw.rect(game.virtual_surface, (20, 20, 30), rect)
     pygame.draw.rect(game.virtual_surface, CYAN, rect, 2)
-    font = pygame.font.SysFont('Consolas', 20, bold=True)
-    game.virtual_surface.blit(font.render("TIENDA - ACCESORIOS (10 Plata c/u)", True, YELLOW), (rect.x + 30, rect.y + 20))
+    font = pygame.font.SysFont("Consolas", 20, bold=True)
+    game.virtual_surface.blit(
+        font.render("TIENDA - ACCESORIOS (10 Plata c/u)", True, YELLOW),
+        (rect.x + 30, rect.y + 20),
+    )
     options = [
         f"Anillo de Vida lvl {game.player.logic.nivel} (+HP)",
         f"Amuleto de Mana lvl {game.player.logic.nivel} (+MP)",
         f"Collar de Defensa lvl {game.player.logic.nivel} (+DEF)",
-        f"Anillo de Poder lvl {game.player.logic.nivel} (+ATK)"
-    ,
-        "Volver"
+        f"Anillo de Poder lvl {game.player.logic.nivel} (+ATK)",
+        "Volver",
     ]
     for i, text_opt in enumerate(options):
         color = CYAN if i == game.menu_index else WHITE
         prefix = "> " if i == game.menu_index else "  "
-        game.virtual_surface.blit(font.render(prefix + text_opt, True, color), (rect.x + 40, rect.y + 70 + i * 40))
+        game.virtual_surface.blit(
+            font.render(prefix + text_opt, True, color),
+            (rect.x + 40, rect.y + 70 + i * 40),
+        )
     draw_vault_money(game, rect)
 
+
 def draw_vault_money(game, rect):
-    money_font = pygame.font.SysFont('Consolas', 16)
+    money_font = pygame.font.SysFont("Consolas", 16)
     p = game.player.logic
     total = p.cobre + (p.plata * 100) + (p.oro * 10000) + (p.platino * 1000000)
-    banco_str = f"{total // 1000000} Platino, {(total % 1000000) // 10000} Oro, {(total % 10000) // 100} Plata, {total % 100} Cobre" if total >= 1000000 else (f"{total // 10000} Oro, {(total % 10000) // 100} Plata, {total % 100} Cobre" if total >= 10000 else (f"{total // 100} Plata, {total % 100} Cobre" if total >= 100 else f"{total} Cobre"))
-    game.virtual_surface.blit(money_font.render(f"Dinero: {banco_str}", True, (205, 127, 50)), (rect.x + 40, rect.y + rect.height - 40))
+    banco_str = (
+        f"{total // 1000000} Platino, {(total % 1000000) // 10000} Oro, {(total % 10000) // 100} Plata, {total % 100} Cobre"
+        if total >= 1000000
+        else (
+            f"{total // 10000} Oro, {(total % 10000) // 100} Plata, {total % 100} Cobre"
+            if total >= 10000
+            else (
+                f"{total // 100} Plata, {total % 100} Cobre"
+                if total >= 100
+                else f"{total} Cobre"
+            )
+        )
+    )
+    game.virtual_surface.blit(
+        money_font.render(f"Dinero: {banco_str}", True, (205, 127, 50)),
+        (rect.x + 40, rect.y + rect.height - 40),
+    )
 
 
 def draw_sell_menu(game):
     draw_inventory_menu(game)
-    title_font = pygame.font.SysFont('Consolas', 22, bold=True)
-    game.virtual_surface.blit(title_font.render("VENDER (Enter para 1/2 valor)", True, RED), (MAP_WIDTH // 2 - 130, 60))
+    title_font = pygame.font.SysFont("Consolas", 22, bold=True)
+    game.virtual_surface.blit(
+        title_font.render("VENDER (Enter para 1/2 valor)", True, RED),
+        (MAP_WIDTH // 2 - 130, 60),
+    )
 
 
 def draw_quantity_selector(game):
-    if getattr(game, 'qty_mode', 'BUY') == "BUY":
+    if getattr(game, "qty_mode", "BUY") == "BUY":
         draw_shop_menu(game)
     else:
         draw_sell_menu(game)
@@ -467,45 +647,70 @@ def draw_quantity_selector(game):
     bg = pygame.Surface((w, h), pygame.SRCALPHA)
     bg.fill((25, 20, 30, 245))
     game.virtual_surface.blit(bg, (rect.x, rect.y))
-    
+
     border_color = (255, 200, 50) if game.qty_mode == "BUY" else (255, 100, 100)
     pygame.draw.rect(game.virtual_surface, border_color, rect, 3)
-    pygame.draw.rect(game.virtual_surface, (100, 80, 40), pygame.Rect(rect.x + 4, rect.y + 4, w - 8, h - 8), 1)
+    pygame.draw.rect(
+        game.virtual_surface,
+        (100, 80, 40),
+        pygame.Rect(rect.x + 4, rect.y + 4, w - 8, h - 8),
+        1,
+    )
 
-    title_font = pygame.font.SysFont('Consolas', 20, bold=True)
-    name_font = pygame.font.SysFont('Consolas', 22, bold=True)
-    qty_font = pygame.font.SysFont('Consolas', 32, bold=True)
-    info_font = pygame.font.SysFont('Consolas', 17)
-    prompt_font = pygame.font.SysFont('Consolas', 15)
+    title_font = pygame.font.SysFont("Consolas", 20, bold=True)
+    name_font = pygame.font.SysFont("Consolas", 22, bold=True)
+    qty_font = pygame.font.SysFont("Consolas", 32, bold=True)
+    info_font = pygame.font.SysFont("Consolas", 17)
+    prompt_font = pygame.font.SysFont("Consolas", 15)
 
-    title_text = "- COMPRA DE CONSUMIBLES -" if game.qty_mode == "BUY" else "- VENTA DE CONSUMIBLES -"
-    t_surf = title_font.render(title_text, True, YELLOW if game.qty_mode == "BUY" else (255, 120, 120))
-    game.virtual_surface.blit(t_surf, (rect.x + (w - t_surf.get_width()) // 2, rect.y + 18))
+    title_text = (
+        "- COMPRA DE CONSUMIBLES -"
+        if game.qty_mode == "BUY"
+        else "- VENTA DE CONSUMIBLES -"
+    )
+    t_surf = title_font.render(
+        title_text, True, YELLOW if game.qty_mode == "BUY" else (255, 120, 120)
+    )
+    game.virtual_surface.blit(
+        t_surf, (rect.x + (w - t_surf.get_width()) // 2, rect.y + 18)
+    )
 
     n_surf = name_font.render(game.qty_item_name, True, WHITE)
-    game.virtual_surface.blit(n_surf, (rect.x + (w - n_surf.get_width()) // 2, rect.y + 48))
+    game.virtual_surface.blit(
+        n_surf, (rect.x + (w - n_surf.get_width()) // 2, rect.y + 48)
+    )
 
     qty_text = f"◄   [  {game.qty_current}  ]   ►"
     q_surf = qty_font.render(qty_text, True, CYAN)
-    game.virtual_surface.blit(q_surf, (rect.x + (w - q_surf.get_width()) // 2, rect.y + 85))
+    game.virtual_surface.blit(
+        q_surf, (rect.x + (w - q_surf.get_width()) // 2, rect.y + 85)
+    )
 
     total_val = game.qty_current * game.qty_unit_price
     if game.qty_mode == "BUY":
         info_text = f"Precio: {game.qty_unit_price} Cob c/u  |  Total: {total_val} Cob"
         sub_info = f"(Max posible: {game.qty_max} unidades)"
     else:
-        info_text = f"Valor: {game.qty_unit_price} Cob c/u  |  Ganancia: +{total_val} Cob"
+        info_text = (
+            f"Valor: {game.qty_unit_price} Cob c/u  |  Ganancia: +{total_val} Cob"
+        )
         sub_info = f"(Tienes: {game.qty_max}  |  Te quedaran: {game.qty_max - game.qty_current})"
 
     i_surf = info_font.render(info_text, True, YELLOW)
-    game.virtual_surface.blit(i_surf, (rect.x + (w - i_surf.get_width()) // 2, rect.y + 132))
+    game.virtual_surface.blit(
+        i_surf, (rect.x + (w - i_surf.get_width()) // 2, rect.y + 132)
+    )
 
     s_surf = info_font.render(sub_info, True, LIGHT_GREY)
-    game.virtual_surface.blit(s_surf, (rect.x + (w - s_surf.get_width()) // 2, rect.y + 156))
+    game.virtual_surface.blit(
+        s_surf, (rect.x + (w - s_surf.get_width()) // 2, rect.y + 156)
+    )
 
     instr_text = "[←/→] -1/+1   [↑/↓] -10/+10   [M] Max   [ENTER] OK   [ESC] Salir"
     instr_surf = prompt_font.render(instr_text, True, (160, 160, 180))
-    game.virtual_surface.blit(instr_surf, (rect.x + (w - instr_surf.get_width()) // 2, rect.y + 204))
+    game.virtual_surface.blit(
+        instr_surf, (rect.x + (w - instr_surf.get_width()) // 2, rect.y + 204)
+    )
 
 
 def draw_bank_menu(game):
@@ -513,23 +718,47 @@ def draw_bank_menu(game):
     menu_rect = pygame.Rect(MAP_WIDTH // 2 - w // 2, HEIGHT // 2 - 110, w, 220)
     pygame.draw.rect(game.virtual_surface, (20, 30, 30), menu_rect)
     pygame.draw.rect(game.virtual_surface, LIGHT_GREY, menu_rect, 2)
-    font = pygame.font.SysFont('Consolas', 18)
+    font = pygame.font.SysFont("Consolas", 18)
     banco = game.player.logic.banco_cobre
-    banco_str = f"{banco // 1000000} Platino, {(banco % 1000000) // 10000} Oro, {(banco % 10000) // 100} Plata, {banco % 100} Cobre" if banco >= 1000000 else (f"{banco // 10000} Oro, {(banco % 10000) // 100} Plata, {banco % 100} Cobre" if banco >= 10000 else (f"{banco // 100} Plata, {banco % 100} Cobre" if banco >= 100 else f"{banco} Cobre"))
-    game.virtual_surface.blit(font.render(f"BANCO: {banco_str}", True, CYAN), (menu_rect.x + 20, menu_rect.y + 10))
-    options = ["Depositar todo", "Retirar todo", "Guardar Objeto", "Retirar Objeto", "Salir"]
+    banco_str = (
+        f"{banco // 1000000} Platino, {(banco % 1000000) // 10000} Oro, {(banco % 10000) // 100} Plata, {banco % 100} Cobre"
+        if banco >= 1000000
+        else (
+            f"{banco // 10000} Oro, {(banco % 10000) // 100} Plata, {banco % 100} Cobre"
+            if banco >= 10000
+            else (
+                f"{banco // 100} Plata, {banco % 100} Cobre"
+                if banco >= 100
+                else f"{banco} Cobre"
+            )
+        )
+    )
+    game.virtual_surface.blit(
+        font.render(f"BANCO: {banco_str}", True, CYAN),
+        (menu_rect.x + 20, menu_rect.y + 10),
+    )
+    options = [
+        "Depositar todo",
+        "Retirar todo",
+        "Guardar Objeto",
+        "Retirar Objeto",
+        "Salir",
+    ]
     descriptions = [
         "Guarda todo tu dinero actual en la caja fuerte.",
         "Retira todos tus ahorros del banco.",
         "Abre el baul para guardar objetos de tu inventario.",
         "Abre el baul para recuperar objetos guardados.",
-        "Cierra el menu del banco."
+        "Cierra el menu del banco.",
     ]
     for i, option in enumerate(options):
         color = CYAN if i == game.menu_index else WHITE
         prefix = "> " if i == game.menu_index else "  "
-        game.virtual_surface.blit(font.render(prefix + option, True, color), (menu_rect.x + 20, menu_rect.y + 50 + i * 32))
-        
+        game.virtual_surface.blit(
+            font.render(prefix + option, True, color),
+            (menu_rect.x + 20, menu_rect.y + 50 + i * 32),
+        )
+
     game.draw_description_box(descriptions[game.menu_index])
 
 
@@ -539,12 +768,15 @@ def draw_vault_menu(game, items, title):
     menu_rect = pygame.Rect(MAP_WIDTH // 2 - w // 2, HEIGHT // 2 - h // 2, w, h)
     pygame.draw.rect(game.virtual_surface, (10, 10, 20), menu_rect)
     pygame.draw.rect(game.virtual_surface, CYAN, menu_rect, 2)
-    font = pygame.font.SysFont('Consolas', 18)
-    game.virtual_surface.blit(font.render(title, True, YELLOW), (menu_rect.x + 10, menu_rect.y + 10))
+    font = pygame.font.SysFont("Consolas", 18)
+    game.virtual_surface.blit(
+        font.render(title, True, YELLOW), (menu_rect.x + 10, menu_rect.y + 10)
+    )
 
     max_visible = (h - 100) // 30
-    if not hasattr(game, 'vault_scroll'): game.vault_scroll = 0
-    
+    if not hasattr(game, "vault_scroll"):
+        game.vault_scroll = 0
+
     if game.menu_index < game.vault_scroll:
         game.vault_scroll = game.menu_index
     elif game.menu_index >= game.vault_scroll + max_visible:
@@ -554,39 +786,64 @@ def draw_vault_menu(game, items, title):
         item = items[i]
         color = CYAN if i == game.menu_index else WHITE
         prefix = "> " if i == game.menu_index else "  "
-        cant_tag = f" x{item.cantidad}" if hasattr(item, 'cantidad') and item.cantidad > 1 else ""
+        cant_tag = (
+            f" x{item.cantidad}"
+            if hasattr(item, "cantidad") and item.cantidad > 1
+            else ""
+        )
         draw_y = menu_rect.y + 40 + (i - game.vault_scroll) * 30
-        game.virtual_surface.blit(font.render(prefix + item.nombre + cant_tag, True, color), (menu_rect.x + 20, draw_y))
-        
+        game.virtual_surface.blit(
+            font.render(prefix + item.nombre + cant_tag, True, color),
+            (menu_rect.x + 20, draw_y),
+        )
+
     exit_idx = len(items)
     if exit_idx >= game.vault_scroll and exit_idx < game.vault_scroll + max_visible:
         color = CYAN if exit_idx == game.menu_index else WHITE
         prefix = "> " if exit_idx == game.menu_index else "  "
         draw_y = menu_rect.y + 40 + (exit_idx - game.vault_scroll) * 30
-        game.virtual_surface.blit(font.render(prefix + "VOLVER / SALIR", True, color), (menu_rect.x + 20, draw_y))
-    
+        game.virtual_surface.blit(
+            font.render(prefix + "VOLVER / SALIR", True, color),
+            (menu_rect.x + 20, draw_y),
+        )
+
     if game.menu_index < len(items):
         item = items[game.menu_index]
-        game.draw_description_box(getattr(item, 'descripcion', "Sin descripcion."))
+        game.draw_description_box(getattr(item, "descripcion", "Sin descripcion."))
     else:
         game.draw_description_box("Cerrar el inventario y volver al juego.")
-        
+
 
 def draw_chest_reward(game):
     w, h = 300, 200
     rect = pygame.Rect(MAP_WIDTH // 2 - w // 2, HEIGHT // 2 - h // 2, w, h)
     pygame.draw.rect(game.virtual_surface, (30, 20, 10), rect)
     pygame.draw.rect(game.virtual_surface, YELLOW, rect, 2)
-    font = pygame.font.SysFont('Consolas', 18)
-    game.virtual_surface.blit(font.render("COFRE ABIERTO", True, YELLOW), (rect.x + 20, rect.y + 10))
-    game.virtual_surface.blit(font.render("Has encontrado:", True, WHITE), (rect.x + 20, rect.y + 50))
-    if hasattr(game, 'chest_reward_item') and game.chest_reward_item:
+    font = pygame.font.SysFont("Consolas", 18)
+    game.virtual_surface.blit(
+        font.render("COFRE ABIERTO", True, YELLOW), (rect.x + 20, rect.y + 10)
+    )
+    game.virtual_surface.blit(
+        font.render("Has encontrado:", True, WHITE), (rect.x + 20, rect.y + 50)
+    )
+    if hasattr(game, "chest_reward_item") and game.chest_reward_item:
         c_item = game.chest_reward_item
-        cant = f" x{c_item.cantidad}" if hasattr(c_item, 'cantidad') and c_item.cantidad > 1 else ""
-        game.virtual_surface.blit(font.render(f"{c_item.nombre}{cant}", True, CYAN), (rect.x + 20, rect.y + 80))
+        cant = (
+            f" x{c_item.cantidad}"
+            if hasattr(c_item, "cantidad") and c_item.cantidad > 1
+            else ""
+        )
+        game.virtual_surface.blit(
+            font.render(f"{c_item.nombre}{cant}", True, CYAN),
+            (rect.x + 20, rect.y + 80),
+        )
     else:
-        game.virtual_surface.blit(font.render("Nada útil...", True, LIGHT_GREY), (rect.x + 20, rect.y + 80))
-    game.virtual_surface.blit(font.render("[ENTER] Continuar", True, YELLOW), (rect.x + 20, rect.y + 140))
+        game.virtual_surface.blit(
+            font.render("Nada útil...", True, LIGHT_GREY), (rect.x + 20, rect.y + 80)
+        )
+    game.virtual_surface.blit(
+        font.render("[ENTER] Continuar", True, YELLOW), (rect.x + 20, rect.y + 140)
+    )
 
 
 def draw_confirm_exit(game):
@@ -594,100 +851,405 @@ def draw_confirm_exit(game):
     rect = pygame.Rect(WIDTH // 2 - w // 2, HEIGHT // 2 - h // 2, w, h)
     pygame.draw.rect(game.virtual_surface, (20, 18, 25), rect)
     pygame.draw.rect(game.virtual_surface, (70, 80, 110), rect, 2)
-    
-    title_font = pygame.font.SysFont('Consolas', 24, bold=True)
-    font = pygame.font.SysFont('Consolas', 19)
-    
+
+    title_font = pygame.font.SysFont("Consolas", 24, bold=True)
+    font = pygame.font.SysFont("Consolas", 19)
+
     t_surf = title_font.render("PAUSA / MENU", True, YELLOW)
-    game.virtual_surface.blit(t_surf, (rect.x + (w - t_surf.get_width()) // 2, rect.y + 20))
-    
+    game.virtual_surface.blit(
+        t_surf, (rect.x + (w - t_surf.get_width()) // 2, rect.y + 20)
+    )
+
     vol_str = f"{int(game.music_volume * 100)}%"
     options = [
         "SEGUIR JUGANDO",
         f"VOLUMEN MUSICA: < {vol_str} >",
         "PANTALLA PRINCIPAL (MENU)",
-        "SALIR AL ESCRITORIO"
+        "SALIR AL ESCRITORIO",
     ]
-    
+
     opt_y = rect.y + 65
     for i, opt in enumerate(options):
         is_sel = game.menu_index == i
         col = YELLOW if is_sel else WHITE
         pref = "> " if is_sel else "  "
-        game.virtual_surface.blit(font.render(f"{pref}{opt}", True, col), (rect.x + 50, opt_y))
+        game.virtual_surface.blit(
+            font.render(f"{pref}{opt}", True, col), (rect.x + 50, opt_y)
+        )
         opt_y += 36
-    
-    msg_font = pygame.font.SysFont('Consolas', 14)
+
+    msg_font = pygame.font.SysFont("Consolas", 14)
     if game.profundidad == 0:
         msg = "En el Pueblo: se guardara tu progreso."
         color = GREEN
     else:
         msg = "¡Atencion! En mazmorra perderas el avance del piso."
         color = (255, 130, 130)
-    game.virtual_surface.blit(msg_font.render(msg, True, color), (rect.x + 35, rect.y + 245))
+    game.virtual_surface.blit(
+        msg_font.render(msg, True, color), (rect.x + 35, rect.y + 245)
+    )
 
 
 def draw_combat_alert(game):
-    if not game.current_enemy: return
-    
+    if not game.current_enemy:
+        return
+
     alpha = int(abs(pygame.time.get_ticks() % 1000 - 500) / 500 * 150) + 100
     overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-    overlay.fill((255, 0, 0, 40 if getattr(game, 'combat_intro_timer', 0) > 0.5 else 0))
+    overlay.fill((255, 0, 0, 40 if getattr(game, "combat_intro_timer", 0) > 0.5 else 0))
     game.virtual_surface.blit(overlay, (0, 0))
-    
-    font_big = pygame.font.SysFont('Consolas', 80, bold=True)
-    font_small = pygame.font.SysFont('Consolas', 30, bold=True)
-    
+
+    font_big = pygame.font.SysFont("Consolas", 80, bold=True)
+    font_small = pygame.font.SysFont("Consolas", 30, bold=True)
+
     text_vs = f"{game.character_name.upper()} VS {game.current_enemy.name.upper()}"
-    
+
     shadow = font_big.render("¡COMBATE!", True, (50, 0, 0))
-    game.virtual_surface.blit(shadow, (WIDTH//2 - shadow.get_width()//2 + 5, HEIGHT//2 - 100 + 5))
-    
+    game.virtual_surface.blit(
+        shadow, (WIDTH // 2 - shadow.get_width() // 2 + 5, HEIGHT // 2 - 100 + 5)
+    )
+
     text_surf = font_big.render("¡COMBATE!", True, RED)
-    game.virtual_surface.blit(text_surf, (WIDTH//2 - text_surf.get_width()//2, HEIGHT//2 - 100))
-    
+    game.virtual_surface.blit(
+        text_surf, (WIDTH // 2 - text_surf.get_width() // 2, HEIGHT // 2 - 100)
+    )
+
     vs_surf = font_small.render(text_vs, True, WHITE)
-    game.virtual_surface.blit(vs_surf, (WIDTH//2 - vs_surf.get_width()//2, HEIGHT//2))
-    
-    timer = getattr(game, 'combat_intro_timer', 0.8)
+    game.virtual_surface.blit(
+        vs_surf, (WIDTH // 2 - vs_surf.get_width() // 2, HEIGHT // 2)
+    )
+
+    timer = getattr(game, "combat_intro_timer", 0.8)
     line_w = 400 * (timer / 0.8)
-    pygame.draw.line(game.virtual_surface, RED, (WIDTH//2 - line_w//2, HEIGHT//2 - 120), (WIDTH//2 + line_w//2, HEIGHT//2 - 120), 4)
-    pygame.draw.line(game.virtual_surface, RED, (WIDTH//2 - line_w//2, HEIGHT//2 + 50), (WIDTH//2 + line_w//2, HEIGHT//2 + 50), 4)
+    pygame.draw.line(
+        game.virtual_surface,
+        RED,
+        (WIDTH // 2 - line_w // 2, HEIGHT // 2 - 120),
+        (WIDTH // 2 + line_w // 2, HEIGHT // 2 - 120),
+        4,
+    )
+    pygame.draw.line(
+        game.virtual_surface,
+        RED,
+        (WIDTH // 2 - line_w // 2, HEIGHT // 2 + 50),
+        (WIDTH // 2 + line_w // 2, HEIGHT // 2 + 50),
+        4,
+    )
+
 
 def draw_cross_menu(game):
     w = 450
     menu_rect = pygame.Rect(MAP_WIDTH // 2 - w // 2, HEIGHT // 2 - 110, w, 220)
     pygame.draw.rect(game.virtual_surface, (20, 20, 30), menu_rect)
     pygame.draw.rect(game.virtual_surface, (255, 255, 0), menu_rect, 2)
-    font = pygame.font.SysFont('Consolas', 18)
-    game.virtual_surface.blit(font.render("CRUZ SAGRADA", True, (255, 255, 0)), (menu_rect.x + 20, menu_rect.y + 10))
-    
+    font = pygame.font.SysFont("Consolas", 18)
+    game.virtual_surface.blit(
+        font.render("CRUZ SAGRADA", True, (255, 255, 0)),
+        (menu_rect.x + 20, menu_rect.y + 10),
+    )
+
     tiempo_actual = game.player.logic.tiempo_juego
     ultimo_tiempo = game.player.logic.cruz_ultimo_tiempo
     segundos_por_dia = 15 * 60
-    
+
     dia_actual = int(tiempo_actual // segundos_por_dia)
     dia_ultimo = int(ultimo_tiempo // segundos_por_dia)
-    
+
     if dia_actual > dia_ultimo:
         game.player.logic.cruz_usos_hoy = 3
-        
+
     usos = game.player.logic.cruz_usos_hoy
     options = [
         "Guardar Partida",
         f"Rezar ({usos} usos hoy)",
         "Cuestionar las Creencias",
-        "Salir"
+        "Salir",
     ]
     descriptions = [
         "Guarda tu progreso actual en el pueblo.",
         "Recupera toda tu vida y mana.",
         "Cuestiona tu fe. Consume los 3 usos del dia (penalizado para curarte hoy).",
-        "Te alejas de la Cruz Sagrada."
+        "Te alejas de la Cruz Sagrada.",
     ]
     for i, option in enumerate(options):
         color = (0, 255, 255) if i == game.menu_index else (255, 255, 255)
         prefix = "> " if i == game.menu_index else "  "
-        game.virtual_surface.blit(font.render(prefix + option, True, color), (menu_rect.x + 20, menu_rect.y + 50 + i * 32))
-        
+        game.virtual_surface.blit(
+            font.render(prefix + option, True, color),
+            (menu_rect.x + 20, menu_rect.y + 50 + i * 32),
+        )
+
     game.draw_description_box(descriptions[game.menu_index])
+
+
+def _draw_herrero_lista(game):
+    w, h = 700, 500
+    rect = pygame.Rect(MAP_WIDTH // 2 - w // 2, HEIGHT // 2 - h // 2, w, h)
+    pygame.draw.rect(game.virtual_surface, (20, 15, 10), rect)
+    pygame.draw.rect(game.virtual_surface, (200, 100, 50), rect, 2)
+
+    title_font = pygame.font.SysFont("Consolas", 22, bold=True)
+    header_font = pygame.font.SysFont("Consolas", 15, bold=True)
+    font = pygame.font.SysFont("Consolas", 16)
+
+    title_surf = title_font.render("HERRERO - SELECCIONA UN ARMA", True, (255, 180, 80))
+    game.virtual_surface.blit(title_surf, (rect.x + 20, rect.y + 15))
+
+    # --- Encabezado de columnas ---
+    header_y = rect.y + 55
+    game.virtual_surface.blit(
+        header_font.render("Nombre", True, LIGHT_GREY), (rect.x + 20, header_y)
+    )
+    game.virtual_surface.blit(
+        header_font.render("Daño", True, LIGHT_GREY), (rect.x + 380, header_y)
+    )
+    game.virtual_surface.blit(
+        header_font.render("Durabilidad", True, LIGHT_GREY), (rect.x + 460, header_y)
+    )
+    game.virtual_surface.blit(
+        header_font.render("Mejoras (D/U)", True, LIGHT_GREY), (rect.x + 570, header_y)
+    )
+    pygame.draw.line(
+        game.virtual_surface,
+        (100, 80, 60),
+        (rect.x + 20, header_y + 22),
+        (rect.right - 20, header_y + 22),
+        1,
+    )
+
+    armas = getattr(game, "herrero_armas", [])
+    row_h = 30
+    list_top = header_y + 30
+    max_visible = (rect.bottom - 60 - list_top) // row_h
+
+    if not hasattr(game, "herrero_scroll"):
+        game.herrero_scroll = 0
+    if game.menu_index < game.herrero_scroll:
+        game.herrero_scroll = game.menu_index
+    elif game.menu_index >= game.herrero_scroll + max_visible:
+        game.herrero_scroll = game.menu_index - max_visible + 1
+
+    # --- Filas de armas ---
+    for i in range(
+        game.herrero_scroll, min(len(armas), game.herrero_scroll + max_visible)
+    ):
+        arma, origen = armas[i]
+        y = list_top + (i - game.herrero_scroll) * row_h
+
+        color = (255, 180, 80) if i == game.menu_index else WHITE
+        prefix = "> " if i == game.menu_index else "  "
+        tag = "[E] " if origen == "equipada" else "[ ] "
+
+        # Truncar nombre largo con elipsis
+        nombre_corto = arma.nombre if len(arma.nombre) <= 30 else arma.nombre[:29] + "…"
+        game.virtual_surface.blit(
+            font.render(f"{prefix}{tag}{nombre_corto}", True, color),
+            (rect.x + 20, y),
+        )
+
+        # Columna: daño
+        game.virtual_surface.blit(
+            font.render(str(arma.daño), True, color), (rect.x + 380, y)
+        )
+
+        # Columna: durabilidad (rojo si < 30%)
+        dur_pct = arma.durabilidad / max(1, arma.durabilidad_max)
+        dur_color = RED if dur_pct < 0.3 else color
+        game.virtual_surface.blit(
+            font.render(f"{arma.durabilidad}/{arma.durabilidad_max}", True, dur_color),
+            (rect.x + 460, y),
+        )
+
+        # Columna: mejoras daño / durabilidad
+        mej_color = (
+            (255, 200, 0)
+            if (
+                arma.mejoras_realizadas_daño >= Arma.MEJORAS_MAX
+                or arma.mejoras_realizadas_durabilidad >= Arma.MEJORAS_MAX
+            )
+            else color
+        )
+        game.virtual_surface.blit(
+            font.render(
+                f"{arma.mejoras_realizadas_daño}/{Arma.MEJORAS_MAX}  "
+                f"{arma.mejoras_realizadas_durabilidad}/{Arma.MEJORAS_MAX}",
+                True,
+                mej_color,
+            ),
+            (rect.x + 570, y),
+        )
+
+    # --- Fila "VOLVER / SALIR" ---
+    exit_idx = len(armas)
+    if exit_idx >= game.herrero_scroll and exit_idx < game.herrero_scroll + max_visible:
+        y = list_top + (exit_idx - game.herrero_scroll) * row_h
+        color = CYAN if exit_idx == game.menu_index else WHITE
+        prefix = "> " if exit_idx == game.menu_index else "  "
+        game.virtual_surface.blit(
+            font.render(prefix + "VOLVER / SALIR", True, color), (rect.x + 20, y)
+        )
+
+    # --- Caja de descripción inferior ---
+    if game.menu_index < len(armas):
+        arma, _origen = armas[game.menu_index]
+        desc = f"{arma.descripcion} Daño actual: {arma.daño}."
+        game.draw_description_box(desc)
+    else:
+        game.draw_description_box("Salir del taller del herrero.")
+
+
+def _draw_herrero_acciones(game):
+    arma, _origen = game.herrero_armas[game.herrero_arma_idx]
+    w, h = 640, 440
+    rect = pygame.Rect(MAP_WIDTH // 2 - w // 2, HEIGHT // 2 - h // 2, w, h)
+    pygame.draw.rect(game.virtual_surface, (20, 15, 10), rect)
+    pygame.draw.rect(game.virtual_surface, (200, 100, 50), rect, 2)
+
+    title_font = pygame.font.SysFont("Consolas", 22, bold=True)
+    font = pygame.font.SysFont("Consolas", 17)
+    info_font = pygame.font.SysFont("Consolas", 15)
+
+    # --- Título ---
+    game.virtual_surface.blit(
+        title_font.render(arma.nombre, True, (255, 180, 80)),
+        (rect.x + 20, rect.y + 15),
+    )
+    pygame.draw.line(
+        game.virtual_surface,
+        (100, 80, 60),
+        (rect.x + 20, rect.y + 50),
+        (rect.right - 20, rect.y + 50),
+        1,
+    )
+
+    # --- Stats en dos columnas ---
+    col1_x = rect.x + 20
+    col2_x = rect.x + w // 2 + 10
+    stat_y = rect.y + 65
+
+    game.virtual_surface.blit(
+        info_font.render(f"Daño actual: {arma.daño}", True, WHITE), (col1_x, stat_y)
+    )
+    game.virtual_surface.blit(
+        info_font.render(
+            f"Durabilidad: {arma.durabilidad}/{arma.durabilidad_max}", True, WHITE
+        ),
+        (col2_x, stat_y),
+    )
+
+    color_mej_d = (
+        (255, 200, 0)
+        if arma.mejoras_realizadas_daño >= Arma.MEJORAS_MAX
+        else LIGHT_GREY
+    )
+    color_mej_u = (
+        (255, 200, 0)
+        if arma.mejoras_realizadas_durabilidad >= Arma.MEJORAS_MAX
+        else LIGHT_GREY
+    )
+    game.virtual_surface.blit(
+        info_font.render(
+            f"Mejoras de daño: {arma.mejoras_realizadas_daño}/{Arma.MEJORAS_MAX}",
+            True,
+            color_mej_d,
+        ),
+        (col1_x, stat_y + 25),
+    )
+    game.virtual_surface.blit(
+        info_font.render(
+            f"Mejoras de durabilidad: {arma.mejoras_realizadas_durabilidad}/{Arma.MEJORAS_MAX}",
+            True,
+            color_mej_u,
+        ),
+        (col2_x, stat_y + 25),
+    )
+
+    # --- Separador ---
+    pygame.draw.line(
+        game.virtual_surface,
+        (100, 80, 60),
+        (rect.x + 20, rect.y + 120),
+        (rect.right - 20, rect.y + 120),
+        1,
+    )
+
+    # --- Calcular costos actuales ---
+    costo_reparar = (arma.durabilidad_max - arma.durabilidad) * 2
+    costo_mej_dur = 100 + arma.durabilidad_max
+    costo_mej_daño = 200 + arma.daño * 15
+
+    if arma.esta_al_maximo():
+        txt_reparar = "Ya al máximo"
+    else:
+        txt_reparar = f"{costo_reparar} Cob"
+
+    txt_mej_dur = (
+        f"{costo_mej_dur} Cob"
+        if arma.puede_mejorar_durabilidad()
+        else "MÁXIMO ALCANZADO"
+    )
+    txt_mej_daño = (
+        f"{costo_mej_daño} Cob" if arma.puede_mejorar_daño() else "MÁXIMO ALCANZADO"
+    )
+
+    opciones_data = [
+        ("Reparar", txt_reparar),
+        ("Mejorar Durabilidad (+15 máx)", txt_mej_dur),
+        ("Mejorar Daño (+10%)", txt_mej_daño),
+        ("Volver", ""),
+    ]
+
+    # --- Dibujar opciones con costo a la derecha ---
+    opt_y = rect.y + 140
+    for i, (opt, costo) in enumerate(opciones_data):
+        color = (255, 180, 80) if i == game.menu_index else WHITE
+        prefix = "> " if i == game.menu_index else "  "
+        game.virtual_surface.blit(
+            font.render(prefix + opt, True, color), (rect.x + 30, opt_y)
+        )
+
+        if costo:
+            # Color del costo: verde si puedes pagar, rojo si no
+            puede_pagar = True
+            if costo.endswith("Cob"):
+                try:
+                    val = int(costo.split()[0])
+                    l = game.player.logic
+                    total_cobre = (
+                        l.cobre + l.plata * 100 + l.oro * 10000 + l.platino * 1000000
+                    )
+                    puede_pagar = total_cobre >= val
+                except (ValueError, IndexError):
+                    puede_pagar = True
+
+            if "MÁXIMO" in costo:
+                costo_color = (255, 200, 0)
+            elif puede_pagar:
+                costo_color = (100, 255, 100)
+            else:
+                costo_color = (255, 100, 100)
+
+            costo_surf = info_font.render(costo, True, costo_color)
+            game.virtual_surface.blit(
+                costo_surf,
+                (rect.right - 30 - costo_surf.get_width(), opt_y + 4),
+            )
+
+        opt_y += 36
+
+    # --- Descripción contextual ---
+    descripciones = [
+        "Restaura la durabilidad del arma al máximo.",
+        "Aumenta la durabilidad máxima del arma en +15 y la repara.",
+        f"Aumenta el daño base del arma en +10%. "
+        f"Mejoras: {arma.mejoras_realizadas_daño}/{Arma.MEJORAS_MAX}",
+        "Volver a la lista de armas.",
+    ]
+    game.draw_description_box(descripciones[game.menu_index])
+
+
+def draw_herrero_menu(game):
+    if game.state == "HERRERO":
+        _draw_herrero_lista(game)
+    else:
+        _draw_herrero_acciones(game)
