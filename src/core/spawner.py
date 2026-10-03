@@ -152,7 +152,7 @@ def _spawn_town(game):
     mid_x = game.level.width_tiles // 2
     mid_y = game.level.height_tiles // 2
     game.log.add_message("[PUEBLO] Estas a salvo aqui.")
-    Mercader(game, mid_x - 2, mid_y)
-    Banquero(game, mid_x + 2, mid_y)
-    CruzInteractiva(game, mid_x, mid_y - 3)
-    Herrero(game, mid_x - 5, mid_y)
+    Mercader(game, mid_x - 3, mid_y - 1) # Frente a su casa
+    Banquero(game, mid_x + 3, mid_y - 1) # Frente a su casa
+    CruzInteractiva(game, mid_x, mid_y - 5) # Frente a las escaleras
+    Herrero(game, mid_x - 6, mid_y + 3) # Frente a su herreria

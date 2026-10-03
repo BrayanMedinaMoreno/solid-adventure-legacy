@@ -83,7 +83,7 @@ class Player(pygame.sprite.Sprite):
         elif dy < 0: self.facing = 'ARRIBA'
         
         if 0 <= dest_x < self.game.level.width_tiles and 0 <= dest_y < self.game.level.height_tiles:
-            if self.game.level.map_data[dest_y][dest_x] == 0:
+            if self.game.level.map_data[dest_y][dest_x] in [0, 2]:
                 # Comprobar colisión con enemigos (Bump Combat)
                 enemy = self.game.get_enemy_at(dest_x, dest_y)
                 chest = self.game.get_chest_at(dest_x, dest_y)

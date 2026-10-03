@@ -560,7 +560,7 @@ class Game:
                 pygame.draw.rect(self.virtual_surface, WHITE, outline_rect, 1)
 
         # El grid también debe seguir la cámara si queremos que se vea bien
-        self.draw_grid(cam_x, cam_y)
+        # self.draw_grid(cam_x, cam_y)
 
         # Quitar el clip para poder dibujar la interfaz en toda la pantalla
         self.virtual_surface.set_clip(None)

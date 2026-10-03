@@ -25,6 +25,38 @@ class Level:
             self.sprites['floor_tile'] = pygame.image.load('assets/sprites/floor_tile.png').convert_alpha()
             self.sprites['escaleras'] = pygame.image.load('assets/sprites/escaleras.png').convert_alpha()
             
+            # Nuevos Assets de Kenney
+            self.sprites['kenney_grass'] = pygame.image.load('assets/kenney_tiny_town/Tiles/tile_0000.png').convert_alpha()
+            self.sprites['kenney_grass_var'] = pygame.image.load('assets/kenney_tiny_town/Tiles/tile_0001.png').convert_alpha()
+            self.sprites['kenney_path'] = pygame.image.load('assets/kenney_tiny_town/Tiles/tile_0025.png').convert_alpha()
+            self.sprites['kenney_wall'] = pygame.image.load('assets/kenney_tiny_town/Tiles/tile_0101.png').convert_alpha()
+            self.sprites['kenney_tree'] = pygame.image.load('assets/kenney_tiny_town/Tiles/tile_0004.png').convert_alpha()
+            self.sprites['kenney_pine'] = pygame.image.load('assets/kenney_tiny_town/Tiles/tile_0003.png').convert_alpha()
+            
+            # Blue Roof House
+            self.sprites['house_blue_r_l'] = pygame.image.load('assets/kenney_tiny_town/Tiles/tile_0048.png').convert_alpha()
+            self.sprites['house_blue_r_m'] = pygame.image.load('assets/kenney_tiny_town/Tiles/tile_0049.png').convert_alpha()
+            self.sprites['house_blue_r_r'] = pygame.image.load('assets/kenney_tiny_town/Tiles/tile_0050.png').convert_alpha()
+            self.sprites['house_brown_w_w'] = pygame.image.load('assets/kenney_tiny_town/Tiles/tile_0072.png').convert_alpha()
+            self.sprites['house_brown_w_d'] = pygame.image.load('assets/kenney_tiny_town/Tiles/tile_0073.png').convert_alpha()
+            
+            # Red Roof House
+            self.sprites['house_red_r_l'] = pygame.image.load('assets/kenney_tiny_town/Tiles/tile_0052.png').convert_alpha()
+            self.sprites['house_red_r_m'] = pygame.image.load('assets/kenney_tiny_town/Tiles/tile_0053.png').convert_alpha()
+            self.sprites['house_red_r_r'] = pygame.image.load('assets/kenney_tiny_town/Tiles/tile_0054.png').convert_alpha()
+            self.sprites['house_grey_w_w'] = pygame.image.load('assets/kenney_tiny_town/Tiles/tile_0076.png').convert_alpha()
+            self.sprites['house_grey_w_d'] = pygame.image.load('assets/kenney_tiny_town/Tiles/tile_0077.png').convert_alpha()
+            self.sprites['kenney_grass_var'] = pygame.image.load('assets/kenney_tiny_town/Tiles/tile_0001.png').convert_alpha()
+            self.sprites['kenney_path'] = pygame.image.load('assets/kenney_tiny_town/Tiles/tile_0025.png').convert_alpha()
+            self.sprites['kenney_wall'] = pygame.image.load('assets/kenney_tiny_town/Tiles/tile_0048.png').convert_alpha()
+            self.sprites['kenney_water'] = pygame.image.load('assets/kenney_tiny_town/Tiles/tile_0112.png').convert_alpha()
+            self.sprites['kenney_tree'] = pygame.image.load('assets/kenney_tiny_town/Tiles/tile_0005.png').convert_alpha()
+            self.sprites['kenney_roof'] = pygame.image.load('assets/kenney_tiny_town/Tiles/tile_0064.png').convert_alpha()
+            self.sprites['kenney_house'] = pygame.image.load('assets/kenney_tiny_town/Tiles/tile_0076.png').convert_alpha()
+            self.sprites['kenney_grass_var'] = pygame.image.load('assets/kenney_tiny_town/Tiles/tile_0001.png').convert_alpha()
+            self.sprites['kenney_path'] = pygame.image.load('assets/kenney_tiny_town/Tiles/tile_0025.png').convert_alpha()
+            self.sprites['kenney_wall'] = pygame.image.load('assets/kenney_tiny_town/Tiles/tile_0048.png').convert_alpha()
+            
             # Escalar
             for key in self.sprites:
                 self.sprites[key] = pygame.transform.scale(self.sprites[key], (TILESIZE, TILESIZE))
@@ -43,13 +75,74 @@ class Level:
     def generate_level(self):
         if self.profundidad == 0:
             # Pueblo (Zona Segura)
-            self.map_data = [[1 for _ in range(self.width_tiles)] for _ in range(self.height_tiles)]
-            for y in range(2, self.height_tiles - 2):
-                for x in range(2, self.width_tiles - 2):
+            self.map_data = [[4 for _ in range(self.width_tiles)] for _ in range(self.height_tiles)] # Fondo de bosque
+            
+            # Area central de pasto
+            for y in range(30, 70):
+                for x in range(30, 70):
                     self.map_data[y][x] = 0
                     self.floor_tiles.append((x, y))
-            self.stairs_down = (self.width_tiles // 2, self.height_tiles - 4)
-            self.entrance = (self.width_tiles // 2, self.height_tiles // 2 + 2)
+                    
+            # Muros del pueblo
+            for x in range(29, 71):
+                self.map_data[29][x] = 1
+                self.map_data[70][x] = 1
+            for y in range(29, 71):
+                self.map_data[y][29] = 1
+                self.map_data[y][70] = 1
+            
+            # Arboles decorativos dentro del pueblo
+            import random as rnd
+            rng = rnd.Random(88) # Nueva semilla
+            for _ in range(60):
+                tx = rng.randint(31, 68)
+                ty = rng.randint(31, 68)
+                if self.map_data[ty][tx] == 0:
+                    self.map_data[ty][tx] = 3 if rng.random() > 0.5 else 4
+                    
+            # Limpiar el centro para caminos y NPCs
+            mid_y = self.height_tiles // 2
+            mid_x = self.width_tiles // 2
+            for y in range(mid_y-10, mid_y+10):
+                for x in range(mid_x-10, mid_x+10):
+                    if self.map_data[y][x] in [3, 4]:
+                        self.map_data[y][x] = 0
+            
+            # Caminos de tierra (hacemos un camino continuo y natural)
+            for x in range(mid_x - 8, mid_x + 9):
+                self.map_data[mid_y][x] = 2
+                self.map_data[mid_y+1][x] = 2
+            for y in range(mid_y - 8, mid_y + 6):
+                self.map_data[y][mid_x] = 2
+                self.map_data[y][mid_x-1] = 2
+                
+            # Conectar Herrero al camino vertical
+            for x in range(mid_x - 6, mid_x):
+                self.map_data[mid_y + 4][x] = 2
+                
+            # Construir casas (3x2)
+            def build_house(hx, hy, type='blue'):
+                roof = [10, 11, 12] if type == 'blue' else [20, 21, 22]
+                wall = [13, 14, 13] if type == 'blue' else [23, 24, 23]
+                
+                # Techo
+                self.map_data[hy-1][hx-1] = roof[0]
+                self.map_data[hy-1][hx] = roof[1]
+                self.map_data[hy-1][hx+1] = roof[2]
+                # Paredes
+                self.map_data[hy][hx-1] = wall[0]
+                self.map_data[hy][hx] = wall[1] # Puerta
+                self.map_data[hy][hx+1] = wall[2]
+                
+                # Caminito a la puerta
+                self.map_data[hy+1][hx] = 2
+            
+            build_house(mid_x - 3, mid_y - 2, 'blue')  # Mercader casa
+            build_house(mid_x + 4, mid_y - 2, 'red')   # Banquero casa (ampliamos 1 para que no choquen)
+            build_house(mid_x - 6, mid_y + 3, 'red')   # Herrero casa
+
+            self.stairs_down = (mid_x, mid_y - 6) # Escalera hacia la cruz / calabozo
+            self.entrance = (mid_x, mid_y + 4)
             return
 
         # Llenar todo de muros (1) para calabozo
@@ -144,26 +237,42 @@ class Level:
                 tile = self.map_data[y][x]
                 
                 if self.profundidad == 0:
-                    # Dibujar Pueblo con sprites
-                    if tile == 1:
-                        # Muro o límite del pueblo (por ahora bloque gris)
-                        pygame.draw.rect(surface, LIGHT_GREY, rect)
+                    # Siempre dibujar el pasto base debajo de cualquier estructura del pueblo
+                    local_rng = random.Random(x * 77 + y * 33)
+                    if local_rng.random() < 0.15:
+                        surface.blit(self.sprites['kenney_grass_var'], rect)
                     else:
-                        # Suelo del pueblo (Pasto variado o camino)
-                        if 'pasto_mucho' in self.sprites:
-                            # Variedad basada en posición (local RNG para no afectar la generación del mapa)
-                            local_rng = random.Random(x * 77 + y * 33)
-                            choice = local_rng.random()
-                            
-                            # Crear un "camino" central simple para demostrar el sprite
-                            if abs(y - self.height_tiles // 2) <= 1:
-                                surface.blit(self.sprites['tierra_camino'], rect)
-                            elif choice < 0.3:
-                                surface.blit(self.sprites['pasto_mucho'], rect)
-                            else:
-                                surface.blit(self.sprites['pasto_poco'], rect)
-                        else:
-                            pygame.draw.rect(surface, (20, 80, 20), rect) # Fallback verde
+                        surface.blit(self.sprites['kenney_grass'], rect)
+                        
+                    # Dibujar Pueblo con sprites de Kenney
+                    if tile == 1:
+                        surface.blit(self.sprites['kenney_wall'], rect)
+                    elif tile == 2:
+                        surface.blit(self.sprites['kenney_path'], rect)
+                    elif tile == 3:
+                        surface.blit(self.sprites['kenney_tree'], rect)
+                    elif tile == 4:
+                        surface.blit(self.sprites['kenney_pine'], rect)
+                    elif tile == 10:
+                        surface.blit(self.sprites['house_blue_r_l'], rect)
+                    elif tile == 11:
+                        surface.blit(self.sprites['house_blue_r_m'], rect)
+                    elif tile == 12:
+                        surface.blit(self.sprites['house_blue_r_r'], rect)
+                    elif tile == 13:
+                        surface.blit(self.sprites['house_brown_w_w'], rect)
+                    elif tile == 14:
+                        surface.blit(self.sprites['house_brown_w_d'], rect)
+                    elif tile == 20:
+                        surface.blit(self.sprites['house_red_r_l'], rect)
+                    elif tile == 21:
+                        surface.blit(self.sprites['house_red_r_m'], rect)
+                    elif tile == 22:
+                        surface.blit(self.sprites['house_red_r_r'], rect)
+                    elif tile == 23:
+                        surface.blit(self.sprites['house_grey_w_w'], rect)
+                    elif tile == 24:
+                        surface.blit(self.sprites['house_grey_w_d'], rect)
                 else:
                     # Dibujar Calabozo con Profundidad (Estilo Zelda/Reference)
                     if tile == 1:
