@@ -32,3 +32,6 @@ build/
 dist/
 *.spec
 *.exe
+
+# Informes tecnicos y documentacion local
+INFORME_TECNICO.txt

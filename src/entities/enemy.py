@@ -45,27 +45,51 @@ class Enemy(pygame.sprite.Sprite):
     def vivo(self):
         return self.vida > 0
 
-    def recibir_daño(self, dmg: tuple[int, bool], tipo="fisico"):
-        if self.titulo:
-            from logic.titulos_enemigos import TITULOS_ENEMIGOS
+    def _get_active_titles(self):
+        titles = getattr(self, 'titulos', [])
+        if not titles and getattr(self, 'titulo', None):
+            titles = [self.titulo]
+        cuestionados = getattr(self, 'titulos_cuestionados', [])
+        return [t for t in titles if t not in cuestionados]
 
-            titulo_data = TITULOS_ENEMIGOS.get(self.titulo)
-            if titulo_data and "on_recibir_daño" in titulo_data:
-                return titulo_data["on_recibir_daño"](self, dmg, tipo=tipo)
+    def recibir_daño(self, dmg, tipo="fisico"):
+        from logic.titulos_enemigos import TITULOS_ENEMIGOS
+        active_titles = self._get_active_titles()
+        
+        dano_final = dmg
+        # Fase 1: Pre-daño (esquivas y mitigaciones)
+        for t in active_titles:
+            data = TITULOS_ENEMIGOS.get(t)
+            # Soporte retrocompatible: si usa on_recibir_daño, lo tratamos como antiguo a menos que devuelva int
+            if data and "on_recibir_daño" in data:
+                # El sistema antiguo aplicaba el daño dentro. 
+                # Si estamos migrando, on_recibir_daño debe devolver False (fallo) o el daño modificado.
+                result = data["on_recibir_daño"](self, dano_final, tipo=tipo)
+                if result is False:
+                    return False
+                elif isinstance(result, (int, float)) and not isinstance(result, bool):
+                    dano_final = result
 
-        self.vida -= dmg
+        # Aplicar el daño
+        self.vida -= dano_final
         if self.vida < 0:
             self.vida = 0
-        return True  # El daño fue aplicado
+            
+        # Fase 2: Post-daño (Last Stand, reacciones)
+        for t in active_titles:
+            data = TITULOS_ENEMIGOS.get(t)
+            if data and "on_post_daño" in data:
+                data["on_post_daño"](self)
+                
+        return True
 
     def act(self):
-        """Método para lógica especial del enemigo en su turno"""
-        if self.titulo:
-            from logic.titulos_enemigos import TITULOS_ENEMIGOS
-
-            titulo_data = TITULOS_ENEMIGOS.get(self.titulo)
-            if titulo_data and "on_turno" in titulo_data:
-                titulo_data["on_turno"](self)
+        from logic.titulos_enemigos import TITULOS_ENEMIGOS
+        active_titles = self._get_active_titles()
+        for t in active_titles:
+            data = TITULOS_ENEMIGOS.get(t)
+            if data and "on_turno" in data:
+                data["on_turno"](self)
 
     def morir(self, log=None):
         self.kill()  # Eliminar del grupo de sprites

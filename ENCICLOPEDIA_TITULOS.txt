@@ -2,112 +2,292 @@
         ENCICLOPEDIA DE IDENTIDAD - SOLID ADVENTURE
 ==========================================================
 
-Este documento detalla el funcionamiento del Sistema de Títulos,
-las especializaciones de combate y las mecánicas de supervivencia.
+Este documento detalla el funcionamiento exhaustivo del Sistema 
+de Títulos, las especializaciones de combate, las mecánicas de 
+supervivencia del jugador y los títulos únicos de los enemigos.
 
-----------------------------------------------------------
-1. CONCEPTOS FUNDAMENTALES
-----------------------------------------------------------
+==========================================================
+1. CONCEPTOS FUNDAMENTALES (JUGADOR)
+==========================================================
 
 CONTRATOS (ACTIVOS): 
-Son títulos que equipas en el menú [T]. Solo puedes tener UNO.
-Definen tu especialidad, tus bonos de ataque/defensa y el 
-TIPO DE DAÑO que infliges.
+Son títulos que equipas en el menú de Títulos [T]. 
+Definen tu especialidad principal, otorgan bonificaciones directas 
+a tus estadísticas (Fuerza, Defensa, Maná, Magia) y pueden modificar 
+el tipo y escala de daño de tus ataques.
 
 HUELLAS (PASIVOS): 
-Son títulos que, una vez desbloqueados, SIEMPRE están activos.
-Sus efectos son acumulativos y no ocupan el espacio de contrato.
+Son títulos que, una vez desbloqueados cumpliendo sus rigurosos 
+requisitos, SIEMPRE están activos en segundo plano. 
+Sus efectos son acumulativos y no ocupan el espacio de contrato activo.
+
+==========================================================
+2. TÍTULOS DEL JUGADOR: CONTRATOS Y ACTIVOS
+==========================================================
+
+--- SENDA INICIAL ---
+* HOJA EN BLANCO:
+  - Descripción: Una tabla rasa. El mundo aún no sabe quién eres.
+  - Bono: Ninguno.
+  - Requisito: Título inicial por defecto con el que comienza todo aventurero.
+
+--- SENDA DEL ACERO (ESPADAS / COMBATE MELEE) ---
+Especialidad en el dominio de armas blancas y técnicas cuerpo a cuerpo.
+
+* APRENDIZ DE ESPADA:
+  - Bono: +5 Fuerza (Ataque), +2 de Daño Habilidad De Espada. 
+  - Requisito: 200 usos de espada (ataques con espada realizados).
+
+* ESPADACHÍN NOVICIO:
+  - Bono: +8 Fuerza, +1 Defensa, +4 de Daño Habilidad De Espada.
+  - Requisitos: 1,000 usos de espada, 100 Goblins eliminados, Título 'Aprendiz de Espada'.
+
+* FILO VETERANO:
+  - Bono: +10 Fuerza, +2 Defensa, +6 de Daño Habilidad De Espada.
+  - Requisitos: 2,000 usos de espada, 150 Goblins eliminados, 150 Slimes eliminados, Título 'Espadachín Novicio'.
+
+* DIESTRO DE LA ESPADA:
+  - Bono: +15 Fuerza, +4 Defensa, +8 de Daño Habilidad De Espada.
+  - Requisitos: 1,000 usos de espada, 100 Goblins eliminados, 100 Slimes eliminados, Título 'Filo Veterano'.
+
+* GRAN DUELISTA:
+  - Bono: +20 Fuerza, +6 Defensa, +10 de Daño Melee.
+  - Requisitos: 1,000 usos de espada, 200 Goblins eliminados, 200 Slimes eliminados, matar 2 jefes, Título 'Diestro de la Espada'.
+
+* MAESTRO DE LA ESPADA:
+  - Bono: +40 Fuerza, +15 Defensa, +15 de Daño Melee.
+  - Requisitos: 10,000 usos de espada, 200 Orcos eliminados, 200 Goblins eliminados, 200 Slimes eliminados, 10 jefes, Título 'Gran Duelista'.
+
+--- SENDA DEL OJO DE ÁGUILA (PROYECTILES / ARCOS Y BALLESTAS) ---
+Especialidad en combate a distancia, precisión y reflejos evasivos.
+
+* INICIADO EN PROYECTILES:
+  - Bono: +6 Fuerza, +2 de Daño a Distancia.
+  - Requisito: 200 disparos o ataques a distancia realizados.
+
+* ARQUERO DE ÉLITE:
+  - Bono: +18 Fuerza, +8 de Daño a Distancia.
+  - Pasivo oculto: +10% de Esquiva básica.
+  - Requisitos: 1,000 ataques a distancia, 100 Slimes eliminados, Título 'Iniciado en Proyectiles'.
+
+* HALCÓN DEL ABISMO:
+  - Bono: +45 Fuerza, +15 de Daño a Distancia.
+  - Pasivo oculto: +20% de Esquiva básica.
+  - Requisitos: 5,000 ataques a distancia, 300 muertes totales de monstruos, Título 'Arquero de Élite'.
+
+--- SENDA DE LO ARCANO (MAGIA Y HECHIZOS) ---
+Especialidad en la manipulación del maná y el daño mágico elemental.
+
+* APRENDIZ DE LO ARCANO:
+  - Bono: +10 Maná Máximo, +2 Magia.
+  - Requisito: Desbloquear la magia (adquirir y aprender el conocimiento arcano con el Mercader).
+
+* MAGO DE BATALLA:
+  - Bono: +30 Maná Máximo, +8 Magia.
+  - Requisitos: 100 lanzamientos de hechizos mágicos en combate, Título 'Aprendiz de lo Arcano'.
+
+* ARCHIMAGO:
+  - Bono: +100 Maná Máximo, +20 Magia.
+  - Requisitos: 500 lanzamientos de hechizos mágicos en combate, Título 'Mago de Batalla'.
+
+--- SENDA DEL EXTERMINADOR (CAZA DE MONSTRUOS) ---
+Bonificaciones de combate y resistencia basadas en la erradicación de amenazas.
+
+* CAZADOR DE SLIMES:
+  - Bono: +4 Defensa.
+  - Requisito: 100 Slimes eliminados en la mazmorra.
+
+* AZOTE DE GOBLINS:
+  - Bono: +10 Defensa, +10 Fuerza.
+  - Requisitos: 250 Goblins eliminados, Título 'Cazador de Slimes'.
+
+* LEYENDA DEL CALABOZO:
+  - Bono: +30 Defensa, +30 Fuerza, +100 Vida Máxima.
+  - Requisitos: 10,000 muertes totales acumuladas, Título 'Azote de Goblins'.
+
+--- SENDA DEL CONQUISTADOR (PROGRESO Y EXPLORACIÓN) ---
+Bonificaciones de vitalidad e instinto basadas en la experiencia y profundidad alcanzada.
+
+* AVENTURERO DEL PUEBLO:
+  - Bono: +30 Vida Máxima.
+  - Requisito: Alcanzar el Nivel 10 de personaje.
+
+* EXPLORADOR DEL ABISMO:
+  - Bono: +100 Vida Máxima, +5 Fuerza.
+  - Requisitos: Alcanzar el Piso 20 de la mazmorra, Título 'Aventurero del Pueblo'.
+
+* SOBERANO DE LAS PROFUNDIDADES:
+  - Bono: +300 Vida Máxima, +20 Fuerza, +20 Defensa.
+  - Requisitos: Alcanzar el Nivel 50, abrir 100 Cofres de tesoro, Título 'Explorador del Abismo'.
+
+--- SENDA DEL LIBRE PENSADOR (FE Y DIVINIDAD) ---
+Ruptura con las tradiciones místicas para expandir el intelecto.
+
+* CUESTIONAR:
+  - Bono: Desbloquea la habilidad de cuestionar títulos, esto hace que el título cuestionado no funcione durante el combate que se cuestiono, solo se puede usar 1 vez por combate.
+  - Requisito: Cuestionar las creencias o dudar ante la Cruz Sagrada 5 veces.
+
+==========================================================
+3. LÍNEAS PASIVAS DE SUPERVIVENCIA (HUELLAS PERMANENTES)
+==========================================================
+Estas líneas se activan de forma automática e irrevocable en cuanto se 
+cumplen sus requisitos. No requieren estar equipadas.
 
 ----------------------------------------------------------
-2. SENDA DEL ACERO (ESPADAS / DAÑO DE HABILIDAD)
-----------------------------------------------------------
-Especialidad en combate cuerpo a cuerpo pesado.
-
-- APRENDIZ DE ESPADA: 
-  * Bono: +5 Fuerza. +2 de daño con armas melee o ataques básicos.
-  * Req: 200 usos de espada.
-- ESPADACHÍN DE GRADO III: 
-  * Bono: +15 Fuerza, +5 Defensa. +8 de daño melee.
-  * Req: 1000 usos, 100 Goblins, Título Anterior.
-- MAESTRO DE LA HOJA: 
-  * Bono: +40 Fuerza, +15 Defensa. +15 de daño melee.
-  * Req: 5000 usos, 200 Orcos, Título Anterior.
-
-----------------------------------------------------------
-3. SENDA DEL OJO DE ÁGUILA (ARCOS / DAÑO A DISTANCIA)
-----------------------------------------------------------
-Especialidad en agilidad y combate remoto.
-
-- INICIADO EN PROYECTILES: 
-  * Bono: +6 Fuerza. +2 de daño con armas a distancia.
-  * Req: 200 usos de proyectil.
-- ARQUERO DE ÉLITE: 
-  * Bono: +18 Fuerza, +8 de daño a distancia.
-  * Req: 1000 usos, 100 Slimes, Título Anterior.
-- HALCÓN DEL ABISMO: 
-  * Bono: +45 Fuerza, +15 de daño a distancia.
-  * Req: 5000 usos, 300 muertes totales, Título Anterior.
-
-----------------------------------------------------------
-4. SENDA DEL EXTERMINADOR (CAZA DE MONSTRUOS)
-----------------------------------------------------------
-Bonos defensivos basados en la eliminación de enemigos.
-
-- CAZADOR DE SLIMES: +4 Def. (100 Slimes).
-- AZOTE DE GOBLINS: +10 Def, +10 Fuerza. (250 Goblins).
-- LEYENDA DEL CALABOZO: +30 Def, +30 Fuerza, +100 Vida. (10000 Kills).
-
-----------------------------------------------------------
-5. SENDA DEL CONQUISTADOR (PROGRESO Y EXPLORACIÓN)
-----------------------------------------------------------
-Bonos de vitalidad basados en tu nivel y profundidad.
-
-- AVENTURERO DEL PUEBLO: +30 Vida. (Nivel 10).
-- EXPLORADOR DEL ABISMO: +100 Vida, +5 Fuerza. (Piso 20).
-- SOBERANO DE LAS PROFUNDIDADES: +300 Vida, +20 Atk, +20 Def. (Lvl 50, 100 Cofres).
-
-----------------------------------------------------------
-6. LÍNEAS PASIVAS DE SUPERVIVENCIA (DIFICULTAD EXTREMA)
-----------------------------------------------------------
-
 A. LÍNEA DE ESQUIVA (6 NIVELES)
-Otorga probabilidades de evitar daño Físico, Trampas, Distancia, Magia y Habilidades.
+----------------------------------------------------------
+Otorga probabilidades porcentuales de anular por completo el daño entrante.
 
-1. ESQUIVA DE NOVATO: 2% esquiva básica. (Req: Recibir 100 golpes a <15% HP).
-2. ESQUIVA DE INICIADO: 4% básica, 10% trampas. (Req: 200 golpes a <25% HP, 60 activaciones Novato).
-3. ESQUIVA INTERMEDIO: 6% básica, 20% trampa, 2% otros. (Req: 200 golpes a <25% HP, 15 trampas, 60 activaciones Iniciado).
-4. ESQUIVA DE VETERANO: 8% básica, 30% trampa, 4% otros. (Req: 200 golpes a <20% HP, 30 trampas, 80 activaciones Intermedio).
-5. ESQUIVA DE EXPERTO: 9% básica, 35% trampa, 6% otros. (Req: 200 golpes a <18% HP, 40 trampas, 80 activaciones Veterano).
-6. ESQUIVA DE MAESTRO: 12% esquiva general absoluta. (Req: 300 golpes a <16% HP, 50 trampas, 80 activaciones Experto).
+1. ESQUIVA DE NOVATO:
+   - Efecto: 2% de probabilidad de esquivar ataques básicos (físicos).
+   - Requisito: Recibir 50 impactos teniendo menos del 80% de vida máxima.
 
+2. ESQUIVA DE INICIADO:
+   - Efectos: 4% de esquiva básica, 10% de probabilidad de anular daño de trampas.
+   - Requisitos: Recibir 100 impactos a <50% HP, 3 esquivas exitosas con 'Esquiva de Novato', Título anterior.
+
+3. ESQUIVA INTERMEDIO:
+   - Efectos: 6% esquiva básica, 20% esquiva a trampas, 2% esquiva a distancia, 2% esquiva mágica, 2% esquiva a habilidades.
+   - Requisitos: Recibir 200 impactos a <40% HP, 5 trampas eludidas, 10 esquivas con 'Esquiva de Iniciado', Título anterior.
+
+4. ESQUIVA DE VETERANO:
+   - Efectos: 8% esquiva básica, 30% esquiva a trampas, 4% distancia, 4% mágica, 4% habilidad.
+   - Requisitos: Recibir 200 impactos a <40% HP, 10 trampas eludidas, 15 esquivas con 'Esquiva Intermedio', Título anterior.
+
+5. ESQUIVA DE EXPERTO:
+   - Efectos: 10% esquiva básica, 35% esquiva a trampas, 6% distancia, 6% mágica, 6% habilidad.
+   - Requisitos: Recibir 200 impactos a <30% HP, 15 trampas eludidas, 30 esquivas con 'Esquiva de Veterano', Título anterior.
+
+6. ESQUIVA DE MAESTRO:
+   - Efecto: 12% de esquiva general absoluta (aplica frente a cualquier fuente de daño existente) y 50% de esquiva a trampas.
+   - Requisitos: Recibir 300 impactos a <22% HP, 50 trampas eludidas, 80 esquivas con 'Esquiva de Experto', Título anterior.
+
+----------------------------------------------------------
 B. LÍNEA DE ÚLTIMO ALIENTO (6 NIVELES)
-Cura automáticamente al bajar de cierto umbral de vida (Una vez por combate).
+----------------------------------------------------------
+Mecanismo de salvamento que cura automáticamente al jugador al recibir daño letal 
+o descender a umbrales críticos de vida (se dispara un máximo de 1 vez por combate).
 
-1. ÚLTIMO ALIENTO NOVATO: Al bajar de 10 HP, cura 30%. (Req: Sobrevivir 50 combates <15% HP).
-2. ÚLTIMO ALIENTO INICIADO: Al bajar de 12 HP, cura 40%. (Req: 100 combates <20% HP, 60 activaciones Novato).
-3. ÚLTIMO ALIENTO INTERMEDIO: Al bajar de 15 HP, cura 50%. (Req: 150 combates <25% HP, 60 activaciones Iniciado).
-4. ÚLTIMO ALIENTO VETERANO: Al bajar de 18 HP, cura 60%. (Req: 200 combates <25% HP, 80 activaciones Intermedio).
-5. ÚLTIMO ALIENTO EXPERTO: Al bajar de 20 HP, cura 70%. (Req: 250 combates <25% HP, 80 activaciones Veterano).
-6. ÚLTIMO ALIENTO DE MAESTRO: Al bajar de 20 HP, cura 80%. (Req: 350 combates <25% HP, 100 activaciones Experto).
+1. ÚLTIMO ALIENTO NOVATO:
+   - Efecto: Al caer a 10 HP o menos, restaura instantáneamente el 30% de la Vida Máxima.
+   - Requisito: Salir victorioso de 50 combates tras haber bajado a menos del 15% de HP.
 
+2. ÚLTIMO ALIENTO INICIADO:
+   - Efecto: Al caer a 12 HP o menos, restaura instantáneamente el 40% de la Vida Máxima.
+   - Requisitos: 100 combates ganados a <20% HP, 60 activaciones de 'Último Aliento Novato', Título anterior.
+
+3. ÚLTIMO ALIENTO INTERMEDIO:
+   - Efecto: Al caer a 15 HP o menos, restaura instantáneamente el 50% de la Vida Máxima.
+   - Requisitos: 150 combates ganados a <25% HP, 60 activaciones de 'Último Aliento Iniciado', Título anterior.
+
+4. ÚLTIMO ALIENTO VETERANO:
+   - Efecto: Al caer a 18 HP o menos, restaura instantáneamente el 60% de la Vida Máxima.
+   - Requisitos: 200 combates ganados a <25% HP, 80 activaciones de 'Último Aliento Intermedio', Título anterior.
+
+5. ÚLTIMO ALIENTO EXPERTO:
+   - Efecto: Al caer a 20 HP o menos, restaura instantáneamente el 70% de la Vida Máxima.
+   - Requisitos: 250 combates ganados a <25% HP, 80 activaciones de 'Último Aliento Veterano', Título anterior.
+
+6. ÚLTIMO ALIENTO DE MAESTRO:
+   - Efecto: Al caer a 20 HP o menos, restaura instantáneamente el 80% de la Vida Máxima.
+   - Requisitos: 350 combates ganados a <25% HP, 100 activaciones de 'Último Aliento Experto', Título anterior.
+
+----------------------------------------------------------
 C. LÍNEA DE REGENERACIÓN (5 NIVELES)
-Recuperación constante y probabilidad de absorción masiva por turno.
+----------------------------------------------------------
+Otorga regeneración pasiva fuera de combate y una probabilidad por turno de absorber 
+vitalidad en combate.
 
-1. REGEN. BAJA: 2% HP (5% chance), +2 flat/seg. (Req: 2,000 HP regenerados total).
-2. REGEN. INTERMEDIA: 5% HP (5% chance), +4 flat. (Req: 10,000 HP regen, 100 activaciones Baja).
-3. REGEN. MEDIA: 8% HP (5% chance), +6 flat. (Req: 25,000 HP regen, 150 activaciones Intermedia).
-4. REGEN. ALTA: 12% HP (5% chance), +10 flat. (Req: 60,000 HP regen, 200 activaciones Media).
-5. REGEN. SUPERIOR: 50% HP (5% chance), +20 flat. (Req: 150,000 HP regen, 300 activaciones Alta).
+1. REGENERACIÓN PASIVA BAJA:
+   - Efectos: +2 HP por segundo fuera de combate. En combate: 5% de probabilidad por turno de curar 2% de la Vida Máxima.
+   - Requisito: Acumular 2,000 HP regenerados o curados en total.
+
+2. REGENERACIÓN PASIVA INTERMEDIA:
+   - Efectos: +4 HP por segundo fuera de combate. En combate: 5% de probabilidad por turno de curar 5% de la Vida Máxima.
+   - Requisitos: 10,000 HP regenerados en total, 100 activaciones de curación en combate de 'Regeneración Baja', Título anterior.
+
+3. REGENERACIÓN PASIVA MEDIA:
+   - Efectos: +6 HP por segundo fuera de combate. En combate: 5% de probabilidad por turno de curar 8% de la Vida Máxima.
+   - Requisitos: 25,000 HP regenerados en total, 150 activaciones de 'Regeneración Intermedia', Título anterior.
+
+4. REGENERACIÓN PASIVA ALTA:
+   - Efectos: +10 HP por segundo fuera de combate. En combate: 5% de probabilidad por turno de curar 12% de la Vida Máxima.
+   - Requisitos: 60,000 HP regenerados en total, 200 activaciones de 'Regeneración Media', Título anterior.
+
+5. REGENERACIÓN PASIVA SUPERIOR:
+   - Efectos: +20 HP por segundo fuera de combate. En combate: 5% de probabilidad por turno de curar 50% de la Vida Máxima.
+   - Requisitos: 150,000 HP regenerados en total, 300 activaciones de 'Regeneración Alta', Título anterior.
+
+==========================================================
+4. SISTEMA DE TÍTULOS DE ENEMIGOS (IA Y JEFES)
+==========================================================
+En el combate, los enemigos con títulos muestran un distintivo especial 
+con el formato <Nombre del Título> y un panel lateral dedicado que detalla 
+sus habilidades, equipamiento y comportamiento en combate.
 
 ----------------------------------------------------------
-7. TIPOS DE DAÑO Y ESQUIVA
+A. SOBERANO DE LA VISCOSIDAD (JEFE MAYOR)
 ----------------------------------------------------------
-El sistema de combate distingue entre:
-- FÍSICO: Golpes estándar.
-- DISTANCIA: Proyectiles (Tiradores).
-- HABILIDAD: Técnicas de espada (Guerreros).
-- MÁGICO: Hechizos y habilidades arcanas.
-- TRAMPA: Daño de entorno en el calabozo.
+* Portador: Rey Slime Rosa (Boss del Piso 5).
+* Dónde se encuentra: Se genera de forma fija en el Piso 5 ('El Reino del Rey Slime').
+* Efectos y Habilidades:
+  - Reflejos Líquidos (Esquiva Táctica): Posee un 10% de probabilidad de esquivar cualquier ataque. 
+    Si el ataque entrante es de tipo MÁGICO, su probabilidad de esquiva aumenta a un 20%.
+  - Absorción de Esencia: En cada turno de combate, tiene un 5% de probabilidad de absorber nutrientes 
+    del calabozo y curarse instantáneamente el 50% de su Vida Máxima.
+  - Voluntad Real (Last Stand): Cuando su vida desciende a 20 HP o menos, se regenera de golpe 
+    hasta el 50% de su Vida Máxima (se activa una única vez por combate).
 
-Tu esquiva pasiva calculará la probabilidad de éxito basándose 
-específicamente en el tipo de ataque recibido.
+----------------------------------------------------------
+B. ACÓLITO DE LA VISCOSIDAD (ÉLITE PROTECTOR)
+----------------------------------------------------------
+* Portador: Slime Arcano (Secuaz Élite del Rey Slime).
+* Dónde se encuentra: Se genera en el Piso 5 como escolta protectora del Rey Slime.
+* Efectos y Habilidades:
+  - Membrana Inerte (Mitigación Masiva): Absorbe el impacto de todos los golpes recibidos, 
+    reduciendo todo el daño entrante en un 50% (divide el daño recibido a la mitad).
+  - Bono de Élite: Nace con +50 HP de vida base y otorga +30 XP adicional de recompensa.
+
+----------------------------------------------------------
+C. GUARDIA REAL (ÉLITE OFENSIVO)
+----------------------------------------------------------
+* Portador: Goblin Campeón (Guardia Élite del Rey Slime).
+* Dónde se encuentra: Se genera en el Piso 5 como escolta de choque del Rey Slime.
+* Efectos y Habilidades:
+  - Juramento de Guardia (Al Nacer): Duplica su Vida Máxima (+100% Max HP) y su Fuerza aumenta en un 20%.
+  - Equipo Forjado: Viene equipado de fábrica con accesorios de combate de alto nivel que potencian 
+    sus estadísticas según el nivel del jugador. Otorga +30 XP adicional de recompensa.
+
+----------------------------------------------------------
+D. EL ARQUITECTO DE LA MAZMORRA (MUTACIÓN PROCEDURAL)
+----------------------------------------------------------
+* Portadores: Monstruos regulares de los primeros pisos (Goblins, Orcos, Slimes).
+* Dónde se encuentra / Probabilidad: Tiene un 15% de probabilidad de generarse aleatoriamente 
+  en cualquier enemigo regular que aparezca entre los Pisos 1 y 4 de la mazmorra.
+* Efectos y Habilidades:
+  - Muros de Piedra: Al iniciar cada turno de combate, el enemigo tiene un 25% de probabilidad 
+    de invocar una barrera de piedra mágica que le concede +5 de Defensa durante 3 turnos. 
+    Al transcurrir los 3 turnos, el muro colapsa y pierde la defensa extra.
+
+----------------------------------------------------------
+E. CAZADOR NOCTURNO
+----------------------------------------------------------
+* Portadores: Monstruos acechadores especiales.
+* Dónde se encuentra: Modificador de combate presente en la tabla de títulos de enemigos.
+* Efectos y Habilidades:
+  - Acecho Letal: Al iniciar el combate, su fuerza de ataque base aumenta en +5 puntos de forma permanente.
+
+==========================================================
+5. TIPOS DE DAÑO Y CÁLCULO DE RESISTENCIAS
+==========================================================
+El motor de combate clasifica cada agresión según su origen:
+
+- FÍSICO: Golpes estándar con armas de filo, garrotes o ataques básicos.
+- DISTANCIA: Proyectiles disparados con arcos o ballestas (escala con Fuerza/Tirador).
+- HABILIDAD: Técnicas especiales cuerpo a cuerpo (hachazos, estocadas de Guerrero).
+- MÁGICO: Hechizos elementales que consumen maná (escala con Magia y penetra armaduras físicas).
+- TRAMPA: Daño de entorno originado por trampas de pinchos y placas ocultas en el piso.
+
+Cada tipo de ataque evalúa la defensa correspondiente del oponente (Física o Mágica) 
+y coteja los porcentajes de evasión y títulos activos del defensor para calcular el daño neto.
+==========================================================

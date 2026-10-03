@@ -13,25 +13,59 @@ TITULOS_DATA = {
     },
     # SENDA DEL ACERO (ESPADAS)
     "Aprendiz de Espada": {
-        "descripcion": "Has empezado a entender el peso del acero. +5 Atk, +2 Daño Melee.",
+        "descripcion": "+5 Fuerza, +2 de Daño Habilidad De Espada. (Req: 200 usos de espada)",
         "req": {"usos_espada": 200},
         "bono": {"fuerza": 5, "daño_melee": 2},
     },
-    "Espadachín de Grado III": {
-        "descripcion": "Tu técnica es fluida. +15 Atk, +5 Def, +8 Daño Melee.",
+    "Espadachín Novicio": {
+        "descripcion": "+8 Fuerza, +1 Defensa, +4 de Daño Habilidad De Espada. (Req: 1000 usos, 100 Goblins, Titulo: Aprendiz)",
         "req": {
             "usos_espada": 1000,
             "muertes_goblin": 100,
             "titulos": ["Aprendiz de Espada"],
         },
-        "bono": {"fuerza": 15, "defensa": 5, "daño_melee": 8},
+        "bono": {"fuerza": 8, "defensa": 1, "daño_melee": 4},
     },
-    "Maestro de la Hoja": {
-        "descripcion": "Inalcanzable con el filo. +40 Atk, +15 Def, +15 Daño Melee.",
+    "Filo Veterano": {
+        "descripcion": "+10 Fuerza, +2 Defensa, +6 de Daño Habilidad De Espada. (Req: 2000 usos, 150 Goblins/Slimes, Titulo: Novicio)",
         "req": {
-            "usos_espada": 5000,
+            "usos_espada": 2000,
+            "muertes_goblin": 150,
+            "muertes_slime": 150,
+            "titulos": ["Espadachín Novicio"],
+        },
+        "bono": {"fuerza": 10, "defensa": 2, "daño_melee": 6},
+    },
+    "Diestro de la Espada": {
+        "descripcion": "+15 Fuerza, +4 Defensa, +8 de Daño Habilidad De Espada. (Req: 1000 usos, 100 Goblins/Slimes, Titulo: Veterano)",
+        "req": {
+            "usos_espada": 1000,
+            "muertes_goblin": 100,
+            "muertes_slime": 100,
+            "titulos": ["Filo Veterano"],
+        },
+        "bono": {"fuerza": 15, "defensa": 4, "daño_melee": 8},
+    },
+    "Gran Duelista": {
+        "descripcion": "+20 Fuerza, +6 Defensa, +10 de Daño Melee. (Req: 1000 usos, 200 Goblins/Slimes, 2 Jefes, Titulo: Diestro)",
+        "req": {
+            "usos_espada": 1000,
+            "muertes_goblin": 200,
+            "muertes_slime": 200,
+            "muertes_jefes": 2,
+            "titulos": ["Diestro de la Espada"],
+        },
+        "bono": {"fuerza": 20, "defensa": 6, "daño_melee": 10},
+    },
+    "Maestro de la Espada": {
+        "descripcion": "+40 Fuerza, +15 Defensa, +15 de Daño Melee. (Req: 10k usos, 200 Orcos/Goblins/Slimes, 10 Jefes, Titulo: Gran Duelista)",
+        "req": {
+            "usos_espada": 10000,
             "muertes_orco": 200,
-            "titulos": ["Espadachín de Grado III"],
+            "muertes_goblin": 200,
+            "muertes_slime": 200,
+            "muertes_jefes": 10,
+            "titulos": ["Gran Duelista"],
         },
         "bono": {"fuerza": 40, "defensa": 15, "daño_melee": 15},
     },
@@ -114,23 +148,23 @@ TITULOS_DATA = {
         "bono": {"max_vida": 300, "fuerza": 20, "defensa": 20},
     },
     "Cuestionar": {
-        "descripcion": "Has dudado de la divinidad. Tu fe flaquea pero tu mente se expande. +15 Magia, +10 Max Mana. (Req: Cuestionar creencias 5 veces)",
+        "descripcion": "Desbloquea la habilidad de cuestionar títulos enemigos, anulando sus efectos. (1 vez por combate)",
         "req": {"cuestionamientos": 5},
-        "bono": {"magia": 15, "max_mana": 10},
+        "bono": {},
     },
     # LINEA DE ESQUIVA (PASIVOS)
     "Esquiva de Novato": {
         "tipo": "pasivo",
         "descripcion": "Has aprendido a moverte entre los golpes. 2% esquiva básica.",
-        "req": {"golpes_bajo_15hp": 100},
+        "req": {"golpes_bajo_80hp": 50},
         "bono_pasivo": {"esquiva_basica": 0.02},
     },
     "Esquiva de Iniciado": {
         "tipo": "pasivo",
         "descripcion": "Tus reflejos mejoran. 4% esquiva básica, 10% trampas.",
         "req": {
-            "golpes_bajo_25hp": 200,
-            "esquivas_novato": 60,
+            "golpes_bajo_50hp": 100,
+            "esquivas_novato": 3,
             "titulos": ["Esquiva de Novato"],
         },
         "bono_pasivo": {"esquiva_basica": 0.04, "esquiva_trampa": 0.10},
@@ -139,9 +173,9 @@ TITULOS_DATA = {
         "tipo": "pasivo",
         "descripcion": "El peligro es predecible. 6% básica, 20% trampa, 2% otros.",
         "req": {
-            "golpes_bajo_25hp": 200,
-            "trampas_esquivadas": 15,
-            "esquivas_iniciado": 60,
+            "golpes_bajo_40hp": 200,
+            "trampas_esquivadas": 5,
+            "esquivas_iniciado": 10,
             "titulos": ["Esquiva de Iniciado"],
         },
         "bono_pasivo": {
@@ -156,9 +190,9 @@ TITULOS_DATA = {
         "tipo": "pasivo",
         "descripcion": "Casi intocable. 8% básica, 30% trampa, 4% otros.",
         "req": {
-            "golpes_bajo_20hp": 200,
-            "trampas_esquivadas": 30,
-            "esquivas_intermedio": 80,
+            "golpes_bajo_40hp": 200,
+            "trampas_esquivadas": 10,
+            "esquivas_intermedio": 15,
             "titulos": ["Esquiva Intermedio"],
         },
         "bono_pasivo": {
@@ -171,15 +205,15 @@ TITULOS_DATA = {
     },
     "Esquiva de Experto": {
         "tipo": "pasivo",
-        "descripcion": "El aire es tu aliado. 9% básica, 35% trampa, 6% otros.",
+        "descripcion": "El aire es tu aliado. 10% básica, 35% trampa, 6% otros.",
         "req": {
-            "golpes_bajo_18hp": 200,
-            "trampas_esquivadas": 40,
-            "esquivas_veterano": 80,
+            "golpes_bajo_30hp": 200,
+            "trampas_esquivadas": 15,
+            "esquivas_veterano": 30,
             "titulos": ["Esquiva de Veterano"],
         },
         "bono_pasivo": {
-            "esquiva_basica": 0.09,
+            "esquiva_basica": 0.10,
             "esquiva_trampa": 0.35,
             "esquiva_distancia": 0.06,
             "esquiva_magica": 0.06,
@@ -188,14 +222,14 @@ TITULOS_DATA = {
     },
     "Esquiva de Maestro": {
         "tipo": "pasivo",
-        "descripcion": "Inalcanzable. 12% esquiva general absoluta.",
+        "descripcion": "Inalcanzable. 12% esquiva general absoluta, 50% trampa.",
         "req": {
-            "golpes_bajo_16hp": 300,
+            "golpes_bajo_22hp": 300,
             "trampas_esquivadas": 50,
             "esquivas_experto": 80,
             "titulos": ["Esquiva de Experto"],
         },
-        "bono_pasivo": {"esquiva_general": 0.12},
+        "bono_pasivo": {"esquiva_general": 0.12, "esquiva_trampa": 0.50},
     },
     # LINEA DE ULTIMO ALIENTO (PASIVOS)
     "Último Aliento Novato": {
@@ -342,6 +376,7 @@ class Personaje:
         self.botas = None
         self.accesorio = None
         self.baul = []
+        self.game = None
 
         self.cooldowns = {"habilidad": 0, "distancia": 0}
 
@@ -357,10 +392,16 @@ class Personaje:
             "muertes_goblin": 0,
             "muertes_orco": 0,
             "muertes_totales": 0,
+            "muertes_jefes": 0,
             "cofres_abiertos": 0,
             "piso_maximo": 0,
             # Contadores para Esquiva
+            "golpes_bajo_80hp": 0,
+            "golpes_bajo_50hp": 0,
+            "golpes_bajo_40hp": 0,
+            "golpes_bajo_30hp": 0,
             "golpes_bajo_25hp": 0,
+            "golpes_bajo_22hp": 0,
             "golpes_bajo_20hp": 0,
             "golpes_bajo_18hp": 0,
             "golpes_bajo_16hp": 0,
@@ -501,18 +542,18 @@ class Personaje:
         # Calcular esquiva basada en pasivos
         prob_esquiva = 0
         if tipo == "fisico":
-            prob_esquiva = self.get_bono_pasivo("esquiva_basica")
+            prob_esquiva = self.get_max_pasivo("esquiva_basica")
         elif tipo == "trampa":
-            prob_esquiva = self.get_bono_pasivo("esquiva_trampa")
+            prob_esquiva = self.get_max_pasivo("esquiva_trampa")
         elif tipo == "distancia":
-            prob_esquiva = self.get_bono_pasivo("esquiva_distancia")
+            prob_esquiva = self.get_max_pasivo("esquiva_distancia")
         elif tipo == "magico":
-            prob_esquiva = self.get_bono_pasivo("esquiva_magica")
+            prob_esquiva = self.get_max_pasivo("esquiva_magica")
         elif tipo == "habilidad":
-            prob_esquiva = self.get_bono_pasivo("esquiva_habilidad")
+            prob_esquiva = self.get_max_pasivo("esquiva_habilidad")
 
         # Esquiva general (Maestro)
-        prob_esquiva += self.get_bono_pasivo("esquiva_general")
+        prob_esquiva += self.get_max_pasivo("esquiva_general")
 
         # Bono especial si el título EQUIPADO tiene esquiva extra (ej: Arquero/Halcón)
         bono_equipado = sum(
@@ -576,16 +617,26 @@ class Personaje:
             self.min_porcentaje_vida_combate, porcentaje_vida
         )
 
+        if porcentaje_vida < 80:
+            self.acciones["golpes_bajo_80hp"] = self.acciones.get("golpes_bajo_80hp", 0) + 1
+        if porcentaje_vida < 50:
+            self.acciones["golpes_bajo_50hp"] = self.acciones.get("golpes_bajo_50hp", 0) + 1
+        if porcentaje_vida < 40:
+            self.acciones["golpes_bajo_40hp"] = self.acciones.get("golpes_bajo_40hp", 0) + 1
+        if porcentaje_vida < 30:
+            self.acciones["golpes_bajo_30hp"] = self.acciones.get("golpes_bajo_30hp", 0) + 1
         if porcentaje_vida < 25:
-            self.acciones["golpes_bajo_25hp"] += 1
+            self.acciones["golpes_bajo_25hp"] = self.acciones.get("golpes_bajo_25hp", 0) + 1
+        if porcentaje_vida < 22:
+            self.acciones["golpes_bajo_22hp"] = self.acciones.get("golpes_bajo_22hp", 0) + 1
         if porcentaje_vida < 20:
-            self.acciones["golpes_bajo_20hp"] += 1
+            self.acciones["golpes_bajo_20hp"] = self.acciones.get("golpes_bajo_20hp", 0) + 1
         if porcentaje_vida < 18:
-            self.acciones["golpes_bajo_18hp"] += 1
+            self.acciones["golpes_bajo_18hp"] = self.acciones.get("golpes_bajo_18hp", 0) + 1
         if porcentaje_vida < 16:
-            self.acciones["golpes_bajo_16hp"] += 1
+            self.acciones["golpes_bajo_16hp"] = self.acciones.get("golpes_bajo_16hp", 0) + 1
         if porcentaje_vida < 15:
-            self.acciones["golpes_bajo_15hp"] += 1
+            self.acciones["golpes_bajo_15hp"] = self.acciones.get("golpes_bajo_15hp", 0) + 1
 
         # Lógica de ÚLTIMO ALIENTO (PASIVOS)
         if not self.aliento_usado_combate and self.vida > 0:
@@ -775,6 +826,10 @@ class Personaje:
                 if f"muertes_{tipo_enemigo}" in self.acciones:
                     self.acciones[f"muertes_{tipo_enemigo}"] += 1
                 self.acciones["muertes_totales"] += 1
+                
+                if "boss" in tipo_enemigo or "jefe" in tipo_enemigo or "rey" in oponente.name.lower():
+                    if "muertes_jefes" in self.acciones:
+                        self.acciones["muertes_jefes"] += 1
 
                 # Verificar nuevos títulos tras una acción importante
                 self.verificar_titulos(log)
@@ -804,6 +859,14 @@ class Personaje:
             if cumple:
                 self.titulos_desbloqueados.append(titulo)
                 nuevos.append(titulo)
+                
+                # CONSUMIR REQUISITOS (MANTENER SOBRANTE)
+                for req_key, req_val in data["req"].items():
+                    if req_key not in ["nivel", "titulos", "magia_desbloqueada", "piso_maximo"]:
+                        # Restar el requisito para conservar el sobrante
+                        if req_key in self.acciones:
+                            self.acciones[req_key] -= req_val
+
                 if log:
                     log.add_message(f"[TITULO] ¡Has desbloqueado: {titulo}!")
                 if self.game:
@@ -1031,7 +1094,8 @@ class Personaje:
         self.titulos_desbloqueados = data.get(
             "titulos_desbloqueados", ["Hoja en Blanco"]
         )
-        self.acciones = data.get("acciones", self.acciones)
+        loaded_acciones = data.get("acciones", {})
+        self.acciones.update(loaded_acciones)
 
         from logic.armaduras import Armadura
         from logic.accesorios import Accesorio

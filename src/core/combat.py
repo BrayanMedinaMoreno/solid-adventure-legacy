@@ -70,6 +70,18 @@ def get_combat_options(game):
         else:
             options.append(f"Ataque Mágico (Sin MP)")
 
+    if "Cuestionar" in titulos_activos:
+        titulos_enemigo = getattr(game.current_enemy, 'titulos', [])
+        if not titulos_enemigo and getattr(game.current_enemy, 'titulo', None):
+            titulos_enemigo = [game.current_enemy.titulo]
+            
+        titulos_cuestionados = getattr(game.current_enemy, 'titulos_cuestionados', [])
+        
+        if not getattr(game.current_enemy, 'cuestionado_este_combate', False):
+            for t in titulos_enemigo:
+                if t not in titulos_cuestionados:
+                    options.append(f"Cuestionar: {t}")
+
     options.extend(["Huir", "Inventario"])
     return options
 
@@ -145,6 +157,26 @@ def resolve_combat_action(game):
             game.log.add_message("[SISTEMA] No tienes suficiente mana.")
             spawn_floating_text(game, "¡SIN MANÁ!", game.player.rect.centerx, game.player.rect.top - 20, BLUE)
             return
+
+    elif action.startswith("Cuestionar: "):
+        titulo_a_cuestionar = action.replace("Cuestionar: ", "")
+        
+        if not hasattr(game.current_enemy, 'titulos_cuestionados'):
+            game.current_enemy.titulos_cuestionados = []
+        game.current_enemy.titulos_cuestionados.append(titulo_a_cuestionar)
+        
+        game.current_enemy.cuestionado_este_combate = True
+        
+        # Retrocompatibilidad: Si usa self.titulo, lo borramos
+        if getattr(game.current_enemy, 'titulo', None) == titulo_a_cuestionar:
+            game.current_enemy.titulo = None
+            
+        game.log.add_message(f"[CUESTIONAR] Has dudado del titulo '{titulo_a_cuestionar}'.")
+        game.log.add_message(f"[SISTEMA] El enemigo pierde los efectos pasivos de ese título.")
+        
+        color = (128, 0, 128)
+        spawn_floating_text(game, "¡DUDAS DE SU PODER!", game.player.rect.centerx, game.player.rect.top - 20, color)
+        should_end_turn = True
 
     elif action == "Huir":
         if random.random() < 0.7:

@@ -307,7 +307,7 @@ class SlimeBoss(SlimeRosa):
         self.fuerza = 35
         self.defensa = 5
         self.xp_recompensa = 500
-        self.titulo = "Soberano de la Viscosidad"
+        self.titulos = ["Cuerpo Escurridizo", "Núcleo Persistente", "Soberano de la Viscosidad"]
         self.last_stand_used = False
         # Escalar visualmente para que se vea como un jefe
         if hasattr(self, 'frames') and self.frames:
